@@ -1,0 +1,71 @@
+# Pull the data
+
+## Create softlinks of bam files to personal working directory
+```bash
+# Move to working/parent directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+
+
+mkdir Data # Make a new directory within the parent directory
+cd Data # Move into Data
+
+# Create a softink to the bamfiles within the Data directory
+ln -s /proj/sparrowhybridization/Pitaliae/data/WGS/bamfiles/ Bamfiles
+
+```
+
+## Download the new house sparrow reference genome from NCBI (accession: GCA_036417665.1)
+```bash
+# In the Data directory
+mkdir ReferenceGenome
+cd ReferenceGenome
+
+# Command line download unsuccessful, download to local computer then move to uppmax server: https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_036417665.1/
+scp ncbi_dataset.zip arianna2@rackham.uppmax.uu.se:/proj/sparrowhybridization/Pitaliae/working/Arianna/Data/ReferenceGenome
+
+# Investigate headers
+cat GCA_036417665.1_bPasDom1.hap1_genomic.fna | grep \> 
+
+``` 
+
+# Get basic alignment stats for existing BAM files using samtools flagstat
+```bash
+# Move back to personal working directory
+cd ../../
+
+# Create a new directory
+mkdir 01_FlagstatExistingBAM
+cd 01_FlagstatExistingBAM
+
+# Start an interactive environment
+interactive -A naiss2023-5-262 -n 16 -t 1:00:00 # should take ~45 minutes
+
+module load bioinfo-tools
+module load samtools/1.14
+
+# Run samtools on each bam file
+for dir in ../Data/Bamfiles/*/; do # ${dir} contains entire path
+
+    dirName=$(basename "$dir") # just the name of the specific directory is stored (e.g corsica)
+
+    outputDir="${dirName}_flagstats" # store a directory name (e.g. corsica_flagstats)
+
+    mkdir "$outputDir" # Make a directory of this name in the current directory, 01_FlagstatsExistingBAM
+
+    for bam in ${dir}/*.bam; do # for each file in the directory that ends in .bam
+
+        file=$(basename "$bam" .bam); # pull the basename, e.g. "K032_resorted_nodup_realigned.bam"
+
+        if [[ "$file" == Rimini* || "$file" == Lesina* ]]; # Rimini and Lesina populations follow a different format
+        then
+            prefix=${file} # pull the basename, e.g. "Rimini_112"
+        else
+            prefix=$(basename "$bam" .bam | cut -d "_" -f 1) # for all other populations, pull the basename "K032_resorted_nodup_realigned.bam" then just "K032"
+        fi
+
+        samtools flagstat "${bam}" -@ 16 > "${outputDir}/${prefix}.flagstat" # run w/16 threads on each .bam file, save (e.g. "K032.flagstat") to corresponding directory
+
+    done
+done
+```
+
