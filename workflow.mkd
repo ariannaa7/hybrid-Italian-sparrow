@@ -1,10 +1,12 @@
+# Log into uppmax
+ssh [username]@rackham.uppmax.uu.se
+
 # Pull the data
 
 ## Create softlinks of bam files to personal working directory
 ```bash
 # Move to working/parent directory
 cd /proj/sparrowhybridization/Pitaliae/working/Arianna
-
 
 mkdir Data # Make a new directory within the parent directory
 cd Data # Move into Data
@@ -54,13 +56,13 @@ for dir in ../Data/Bamfiles/*/; do # ${dir} contains entire path
 
     for bam in ${dir}/*.bam; do # for each file in the directory that ends in .bam
 
-        file=$(basename "$bam" .bam); # pull the basename, e.g. "K032_resorted_nodup_realigned.bam"
+        file=$(basename "$bam" .bam); # pull the basename, e.g. "K032_resorted_nodup_realigned"
 
         if [[ "$file" == Rimini* || "$file" == Lesina* ]]; # Rimini and Lesina populations follow a different format
         then
             prefix=${file} # pull the basename, e.g. "Rimini_112"
         else
-            prefix=$(basename "$bam" .bam | cut -d "_" -f 1) # for all other populations, pull the basename "K032_resorted_nodup_realigned.bam" then just "K032"
+            prefix=$(basename "$bam" .bam | cut -d "_" -f 1) # for all other populations, pull the basename "K032_resorted_nodup_realigned" then just "K032"
         fi
 
         samtools flagstat "${bam}" -@ 16 > "${outputDir}/${prefix}.flagstat" # run w/16 threads on each .bam file, save (e.g. "K032.flagstat") to corresponding directory
@@ -68,4 +70,100 @@ for dir in ../Data/Bamfiles/*/; do # ${dir} contains entire path
     done
 done
 ```
+Outputs: 1 output per .bam file for each population. Outputs are named [id].flagstat and housed within a subdirectory of 01_FlagstatExistingBAM named [population]_flagstats
 
+# Re-map BAM files to new House Sparrow Reference Genome
+
+## Create a directory for remapping task
+```bash
+# Move to working/parent directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+
+mkdir 02_Remap # Create a new subdirectory
+```
+
+## Index the new reference genome with BWA (v0.7.17)
+```bash
+# When attempting to run Heng Li's code on remapping an aligned BAM, received this error: [E::bwa_idx_load_from_disk] fail to locate the index files
+# To resolve, index the new reference genome
+
+interactive -A naiss2023-5-262 -n 12 -t 0:45:00 # request an interactive environment
+
+module load bioinfo-tools
+module load samtools/1.12 # latest version at the time of Heng Li's post
+module load bwa/0.7.17 #latest version at the time of Heng Li's post
+
+# Move to directory that houses the new reference genome
+cd Data/ReferenceGenome
+
+# Prior to remapping, run bwa index
+bwa index GCA_036417665.1_bPasDom1.hap1_genomic.fna # should take about 45 minutes
+```
+Ouputs: 5 files with a basename of GCA_036417665.1_bPasDom1.hap1_genomic.fna (the file name of the reference genome)
+
+(1) [basename].amb (2) [basename].ann (3)[basename].bwt (4) [basename].pac (5) [basename].sa
+
+## Create a folder to house project scripts & create scripts
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+
+mkdir Scripts
+cd Scripts
+
+mkdir Remap
+cd Remap # scripts for this task should be located here!
+```
+
+There should be 13 scripts in this folder! The 12 scripts with the population in the name will remap the bam files for each population. The remap.sh script can remap all the bam files for all of the scripts, but it would take many days to run this script on one node. Therefore, we will run 1 job per population instead of 1 job for all the bam files!
+
+### Example code for remapping just one BAM file
+```bash
+interactive -A naiss2023-5-262 -n 20 -t 2:00:00
+
+# Code pulled from Heng Li's blogpost, see link for command-by-command description
+# https://lh3.github.io/2021/07/06/remapping-an-aligned-bam
+# 20 cores per node, 1 thread per core! Specify 20 threads for each task
+samtools collate -Oun128 ../Data/Bamfiles/corsica/K006_resorted_nodup_realigned.bam -@ 20 | samtools fastq -OT RG,BC -@ 20 - \
+| bwa mem -pt8 -CH <(samtools view -H ../Data/Bamfiles/corsica/K006_resorted_nodup_realigned.bam|grep ^@RG) ../Data/ReferenceGenome/GCA_036417665.1_bPasDom1.hap1_genomic.fna -t 20 - \
+| samtools sort -@ 20 -m4g -o K006_remapped.bam -
+```
+
+## Create jobs for each script
+```bash
+# Corsica, batch job 46022971
+sbatch -A naiss2023-5-262 -p node -t 1-3:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_corsica.err -J remap_existingBAM_corsica --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_corsica.sh
+
+# Crete, batch job 46022972
+sbatch -A naiss2023-5-262 -p node -t 12:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_crete.err -J remap_existingBAM_crete --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_crete.sh
+
+# Crotone, batch job 46022978
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_crotone.err -J remap_existingBAM_crotone --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_crotone.sh
+
+# Guglionesi, batch job 46022979
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_guglionesi.err -J remap_existingBAM_guglionesi --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_guglionesi.sh
+
+# House, batch job 46022983
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_house.err -J remap_existingBAM_house --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_house.sh
+
+# Malta, batch job 46022984
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_malta.err -J remap_existingBAM_malta --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_malta.sh
+
+# Miscellaneous, batch job 46022987
+sbatch -A naiss2023-5-262 -p node -t 11:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_miscellaneous.err -J remap_existingBAM_miscellaneous --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_miscellaneous.sh
+
+# P_montanus, batch job 46022989
+sbatch -A naiss2023-5-262 -p node -t 11:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_p_montanus.err -J remap_existingBAM_p_montanus --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_p_montanus.sh
+
+# Rimini, batch job 46022990
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_rimini.err -J remap_existingBAM_rimini --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_rimini.sh
+
+# Sardinia, batch job 46022991
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_sardinia.err -J remap_existingBAM_sardinia --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_sardinia.sh
+
+# Sicily, batch job 46022994
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_sicily.err -J remap_existingBAM_sicily --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_sicily.sh
+
+# Spanish, batch job 46022995
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_spanish.err -J remap_existingBAM_spanish --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_spanish.sh
+
+```
