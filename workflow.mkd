@@ -28,7 +28,7 @@ scp ncbi_dataset.zip arianna2@rackham.uppmax.uu.se:/proj/sparrowhybridization/Pi
 cat GCA_036417665.1_bPasDom1.hap1_genomic.fna | grep \>
 ```
 
-# Get basic alignment stats for existing BAM files using samtools flagstat
+# Get basic alignment stats for existing BAM files using SAMtools flagstat (v1.12)
 ```bash
 # Move back to personal working directory
 cd ../../
@@ -71,7 +71,7 @@ done
 
 Outputs: 1 output per .bam file for each population. Outputs are named [id].flagstat and housed within a subdirectory of 01_FlagstatExistingBAM named [population]_flagstats
 
-# Re-map BAM files to new House Sparrow Reference Genome
+# Re-map BAM files to new House Sparrow Reference Genome using SAMtools (v1.12)
 
 ## Create a directory for remapping task
 ```bash
@@ -132,62 +132,46 @@ samtools collate -Oun128 ../Data/Bamfiles/corsica/K006_resorted_nodup_realigned.
 | samtools sort -@ 20 -m4g -o K006_remapped.bam -
 ```
 
-## Create jobs for each script
+## Create jobs for each remapping script
 ```bash
 # Corsica, batch job 46179245
-sbatch -A naiss2023-5-262 -p node -t 17:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_corsica.err -J remap_existingBAM_corsica --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_corsica.sh
+sbatch -A naiss2023-5-262 -p node -t 17:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_corsica.err -J remap_existingBAM_corsica --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_corsica.sh
 
 # Crete, batch job 46179242
-sbatch -A naiss2023-5-262 -p node -t 7:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_crete.err -J remap_existingBAM_crete --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_crete.sh
+sbatch -A naiss2023-5-262 -p node -t 7:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_crete.err -J remap_existingBAM_crete --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_crete.sh
 
 # Crotone, batch job 46179247
-sbatch -A naiss2023-5-262 -p node -t 10:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_crotone.err -J remap_existingBAM_crotone --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_crotone.sh
+sbatch -A naiss2023-5-262 -p node -t 10:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_crotone.err -J remap_existingBAM_crotone --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_crotone.sh
 
 # Guglionesi, batch job 46179248
-sbatch -A naiss2023-5-262 -p node -t 12:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_guglionesi.err -J remap_existingBAM_guglionesi --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_guglionesi.sh
+sbatch -A naiss2023-5-262 -p node -t 12:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_guglionesi.err -J remap_existingBAM_guglionesi --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_guglionesi.sh
 
 # House, batch job 46220281
-sbatch -A naiss2023-5-262 -p node -t 15:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_house.err -J remap_existingBAM_house --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_house.sh
+sbatch -A naiss2023-5-262 -p node -t 15:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_house.err -J remap_existingBAM_house --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_house.sh
 
 # Malta, batch job 46179250
-sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_malta.err -J remap_existingBAM_malta --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_malta.sh
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_malta.err -J remap_existingBAM_malta --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_malta.sh
 
 # Miscellaneous, batch job 46220282
-sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_miscellaneous.err -J remap_existingBAM_miscellaneous --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_miscellaneous.sh
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_miscellaneous.err -J remap_existingBAM_miscellaneous --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_miscellaneous.sh
 
 # P_montanus, batch job 46220283
-sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_p_montanus.err -J remap_existingBAM_p_montanus --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_p_montanus.sh
+sbatch -A naiss2023-5-262 -p node -t 13:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_p_montanus.err -J remap_existingBAM_p_montanus --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_p_montanus.sh
 
 # Rimini, batch job 46179255
-sbatch -A naiss2023-5-262 -p node -t 9:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_rimini.err -J remap_existingBAM_rimini --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_rimini.sh
+sbatch -A naiss2023-5-262 -p node -t 9:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_rimini.err -J remap_existingBAM_rimini --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_rimini.sh
 
 # Sardinia, batch job 46179256
-sbatch -A naiss2023-5-262 -p node -t 10:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_sardinia.err -J remap_existingBAM_sardinia --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_sardinia.sh
+sbatch -A naiss2023-5-262 -p node -t 10:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_sardinia.err -J remap_existingBAM_sardinia --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_sardinia.sh
 
 # Sicily, batch job 46179347
-sbatch -A naiss2023-5-262 -p node -t 9:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_sicily.err -J remap_existingBAM_sicily --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_sicily.sh
+sbatch -A naiss2023-5-262 -p node -t 9:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_sicily.err -J remap_existingBAM_sicily --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_sicily.sh
 
 # Spanish, batch job 46179498
-sbatch -A naiss2023-5-262 -p node -t 14:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e remapping_spanish.err -J remap_existingBAM_spanish --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_spanish.sh
+sbatch -A naiss2023-5-262 -p node -t 14:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap -e ../Job_logs/02_Remap_logs/remapping_spanish.err -J remap_existingBAM_spanish --mail-user=ar4666al-s@student.lu.se --mail-type=ALL remap_spanish.sh
 ```
 
-### Move all the log files to their own directory
-```bash
-# Move to personal working directory if not already there
-cd /proj/sparrowhybridization/Pitaliae/working/Arianna
-
-mkdir Job_logs
-cd Job_logs
-
-mkidr 02_Remap_logs
-cd 02_Remap_logs
-
-mv ../../02_Remap/*.err . # .err files contain a complete log of every message outputted to the terminal while the job was running
-
-mv ../../02_Remap/slurm-46* .
-```
-
-### Index the new BAM files
+## Index the new BAM files using SAMtools (v1.12)
 ```bash
 # Create a script (index_remapped.sh) to index the bam files and save it to Arianna/Scripts/02_Remap_scripts
 
@@ -195,5 +179,71 @@ mv ../../02_Remap/slurm-46* .
 cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts/02_Remap_scripts
 
 # Indexing, batch job 46239392
-sbatch -A naiss2023-5-262 -p core -n 16 -t 1:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna -e ../Job_logs/02_Remap_logs/indexing.err -J indexing_remapped_BAM --mail-user=ar4666al-s@student.lu.se --mail-type=ALL index_remapped.sh
+sbatch -A naiss2023-5-262 -p core -n 16 -t 1:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna -e Job_logs/02_Remap_logs/indexing.err -J indexing_remapped_BAM --mail-user=ar4666al-s@student.lu.se --mail-type=ALL index_remapped.sh
 ```
+Outputs: 1 output per bam file. Outputs are named [id]_remapped.bam.bai and housed in the same directory as the corresponding bam files
+
+# Run SAMtools (v1.14) flagstat on the new BAM files
+```bash
+# Create a new directory to store flagstat output of task
+cd ../.. # back to Arianna working directory
+mkdir 03_FlagstatRemappedBAM
+
+# Move to Scripts directory
+cd Scripts
+
+# Create a scripts directtory for the task, create flagstat_remapped.sh script and store it here
+mkdir 03_FlagstatRemappedBAM_scripts
+cd 03_FlagstatRemappedBAM_scripts
+
+# Flagstats on remapped bam files, batch job 46240169
+sbatch -A naiss2023-5-262 -p core -n 16 -t 1:30:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/03_FlagstatRemappedBAM -e ../Job_logs/03_FlagstatRemappedBAM_logs/flagstat.err -J flagstat_remapped_BAM --mail-user=ar4666al-s@student.lu.se --mail-type=ALL flagstat_remapped.sh
+```
+Outputs: 1 output per .bam file for each population. Outputs are named [id]_remapped.flagstat and housed within a subdirectory of 03_FlagstatRemappedBAM named [population]_remap_flagstats
+
+# Merge samtools flagstat output for each existing and remapped bam
+``` bash
+# Create a new directory to store merged flagstat files
+cd ../.. # back to Arianna working directory
+mkdir 04_FlagstatCombined
+cd 04_FlagstatCombined
+
+# Combine the flagstat files
+for dir_existing in ../01_FlagstatExistingBAM/*/; do # ${dir_existing} contains entire path
+
+    dir_existingName=$(basename "$dir_existing") # just the name of the specific directory is stored (e.g corsica_flagstats)
+
+    outputDir="${dir_existingName}_combined" # store a directory name (e.g. corsica_flagstats_combined)
+
+    mkdir "$outputDir" # make a directory of this name in the current directory, 04_FlagstatCombined
+
+    for dir_remapped in ../03_FlagstatRemappedBAM/*/; do
+
+        for flagstat_existing in ${dir_existing}/*.flagstat; do # for the existing bam flagstat files
+
+            prefix_existing=$(basename "$flagstat_existing" .flagstat) # pull just K032 instead of K032.flagstat
+            
+            for flagstat_remapped in ${dir_remapped}/*.flagstat; do # for the remapped bam flagstat files
+
+                prefix_remapped=$(basename "$flagstat_remapped" "_remapped.flagstat") # pull just Rimini_91 from Rimini_91_remapped.flagstat
+
+
+                if [[ "$prefix_existing" == "$prefix_remapped" ]]; # if the prefixes for existing and remapped match (e.g. Rimini_91 == Rimini_91)
+                then
+                    echo -e ">\n>${prefix_existing}.bam flagstat output (existing bam file)" > tempHeader_exisiting # create a temporary header for the existing flagstat output, overwrite for each iteration
+
+                    echo -e ">\n>${prefix_remapped}_remapped.bam flagstat output (remapped bam file)" > tempHeader_remapped # create a temporary header for the remapped flagstat output, overwrite for each iteration
+
+                    cat tempHeader_exisiting ${flagstat_existing} tempHeader_remapped ${flagstat_remapped} > "${outputDir}/${prefix_existing}_combo.flagstat" # vertically concatenate the existing header + existing flagstat output + remapped header + remapped flagstat output
+                else
+                    continue # if the prefixes don't match, don't do anything
+                fi
+
+            done
+
+        done
+        
+    done
+done
+```
+Outputs: 1 output per sample file for each population. Outputs are named [id]_combo.flagstat and housed within a subdirectory of 04_FlagstatCombined named [population]_flagstats_combined 
