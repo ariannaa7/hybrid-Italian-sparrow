@@ -10,7 +10,7 @@
 
 #SBATCH -D /proj/sparrowhybridization/Pitaliae/working/Arianna
 
-#SBATCH -e ../Job_logs/02_Remap_logs/indexing.err
+#SBATCH -e Job_logs/02_Remap_logs/indexing.err
 
 #SBATCH -J indexing_remapped_BAM
 

@@ -8,7 +8,7 @@
 
 #SBATCH -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap
 
-#SBATCH -e remapping_guglionesi.err
+#SBATCH -e ../Job_logs/02_Remap_logs/remapping_guglionesi.err
 
 #SBATCH -J remap_existingBAM_guglionesi
 

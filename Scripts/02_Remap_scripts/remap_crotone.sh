@@ -8,7 +8,7 @@
 
 #SBATCH -D /proj/sparrowhybridization/Pitaliae/working/Arianna/02_Remap
 
-#SBATCH -e remapping_crotone.err
+#SBATCH -e ../Job_logs/02_Remap_logs/remapping_crotone.err
 
 #SBATCH -J remap_existingBAM_crotone
 
