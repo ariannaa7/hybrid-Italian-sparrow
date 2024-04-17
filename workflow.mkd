@@ -22,7 +22,7 @@ mkdir ReferenceGenome
 cd ReferenceGenome
 
 # Command line download unsuccessful, download to local computer then move to uppmax server: https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_036417665.1/
-scp ncbi_dataset.zip arianna2@rackham.uppmax.uu.se:/proj/sparrowhybridization/Pitaliae/working/Arianna/Data/ReferenceGenome
+scp ncbi_dataset.zip [username]@rackham.uppmax.uu.se:/proj/sparrowhybridization/Pitaliae/working/Arianna/Data/ReferenceGenome
 
 # Investigate headers
 cat GCA_036417665.1_bPasDom1.hap1_genomic.fna | grep \>
@@ -246,4 +246,393 @@ for dir_existing in ../01_FlagstatExistingBAM/*/; do # ${dir_existing} contains 
     done
 done
 ```
-Outputs: 1 output per sample file for each population. Outputs are named [id]_combo.flagstat and housed within a subdirectory of 04_FlagstatCombined named [population]_flagstats_combined 
+Outputs: 1 output per sample file for each population. Outputs are named [id]_combo.flagstat and housed within a subdirectory of 04_FlagstatCombined named [population]_flagstats_combined
+
+# Variant Calling
+
+## Add prefix to Malta miscellaneous samples
+```bash
+# There are different files with the same sample name in the malta_remap folder and miscellaneous_remap
+# bcftools will only include one file if another is a duplicate (regardless of changing file names, scans contents of file to determine)
+
+# add "misc" prefix to the "M" samples in the miscellaneous folder
+# to differentiate between the two duplicate sample IDs and check vcf header to be sure the samples from malta_remap were used to call variants
+
+cd ../02_Remap/miscellaneous_remap/ # move to directory containing remapped miscellaneous bam files
+
+for bam in M*; do # for files in this directory that start with "M"
+
+    # Append "misc" to the start of the file name
+    newName="misc_$bam" 
+
+    # Rename the file
+    mv "$bam" "$newName" # e.g. misc_M019_remapped.bam
+done
+
+# Since we know that 2 samples won't be inlcuded, we know that 124 samples will actually be included in the VCF! Still call the files 126 sample vcf for now
+```
+
+## Generate all site BCFs using BCFtools (v 1.14)
+```bash
+# Move to home working directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+
+# Create a subdirectory for the task
+mkdir 05_AllSiteBCFs
+cd 05_AllSiteBCFs
+
+# Create a file which lists the path to every bam file on a new line
+for dir in ../02_Remap/*_remap/; do # ${dir} contains entire path
+
+    for bam in ${dir}/*.bam; do # stores the path to each file that ends in .bam to ${bam}
+
+        echo ${bam} >> mappedReads_paths # Will create the file and append the path stored in ${bam} for each iteration
+
+    done
+done
+
+# Create a file with the names of all the chromosomes present in the reference, .fai is the index file!
+cat ../Data/ReferenceGenome/GCA_036417665.1_bPasDom1.hap1_genomic.fna.fai | cut -f 1 >> chromo_list # "chromosomes" based on fna header so e.g. CM071426.1 = chromosome 1
+
+# Move to the Scripts directory
+cd ../Scripts/
+
+# Create a subdirectory
+mkdir 05_AllSiteBCFs_scripts
+cd 05_AllSiteBCFs_scipts
+
+# Modify Kalle's script called bcftools.sh (& turn it into an array job) and move it into this directory. Now called bcftools_array.sh
+
+# Submit the array job to call variants for each chromosome & scaffold separateley, batch job 46316581
+sbatch -A naiss2023-5-262 --array=1-334 --ntasks=1 -t 4-00:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/05_AllSiteBCFs -e ../Job_logs/05_AllSiteBCFs_logs/126samples_bcf.err -J 126samples_bcf --mail-user=ar4666al-s@student.lu.se --mail-type=ALL bcftools_array.sh
+```
+Outputs: 1 output BCF file per region (chromosome/scaffold), 334 BCF files total. Outputs are named 126sample_v_gc_raw_[regionID].bcf and are located in the 05_AllSiteBCFs directory
+
+## Generate BCFs with just biallelic sites using BCFtools (v 1.14)
+```bash
+# Move to home working directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+
+# Create a subdirectory for the task
+mkdir 06_BiallelicSiteBCFs
+cd 06_BiallelicSiteBCFs
+
+# Create a file with the paths to each all-site bcf file
+for bcf in ../05_AllSiteBCFs/*.bcf; do # ${bcf} contains entire path
+
+    echo ${bcf} >> bcf_paths # Will create the file and append the path stored in ${bcf} for each iteration
+
+done
+
+# Move to the Scripts directory
+cd ../Scripts
+
+# Create a subdirectory
+mkdir 06_BiallelicSiteBCFs_scripts
+cd 06_BiallelicSiteBCFs_scripts
+
+# Make a script called bcftools_biallelic.sh to just pull the biallelic site for each of of the bcf files
+
+# Submit job to pull just biallelic variants for each bcf, batch job 46440834
+sbatch -A naiss2023-5-262 --array=1-334 --ntasks=20 -t 2:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/06_BiallelicSiteBCFs -e ../Job_logs/06_BiallelicSiteBCFs_logs/biallelic_bcfs.err -J biallelic_bcfs --mail-user=ar4666al-s@student.lu.se --mail-type=ALL bcftools_biallelic.sh
+```
+Outputs: 1 output BCF file per region (chromosome/scaffold), 334 BCF files total. Outputs are named 126sample_[regionID]_biallelicSites.bcf and are located in the 06_BiallelicSiteBCFs directory
+
+# Determine filtering thresholds
+
+## Randomly sample ~100,000 calls (of biallelic sites) to determine filtering thresholds, following workflow from https://speciationgenomics.github.io/filtering_vcfs/
+```bash
+# Move back to home working directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+
+# Create a subdirectory called
+mkdir 07_PreFiltering
+cd 07_PreFiltering
+
+# Create a file with the paths to each bcf (biallelic sites only)
+for bcf in ../06_BiallelicSiteBCFs/*.bcf; do # ${bcf} contains entire path
+
+    echo ${bcf} >> biallelic_bcf_paths # Will create the file and append the path stored in ${bcf} for each iteration
+
+done
+
+# Move to the Scripts directory
+cd ../Scripts
+
+# Create a subdirectory
+mkdir 07_PreFiltering_scripts
+cd 07_PreFiltering_scripts
+
+# Make a script called countCallsBCF.sh to count the number of calls in each bcf and append that number to a list called countCallsList
+
+# Submit array job to count calls for each bcf (biallelic calls only), batch job 46441607
+sbatch -A naiss2023-5-262 --array=1-334 --ntasks=1 -t 1:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering -e ../Job_logs/07_PreFiltering_logs/countCalls.err -J countCalls --mail-user=ar4666al-s@student.lu.se --mail-type=ALL countCallsBCF.sh
+
+# Use awk to count all the numbers in the file
+cd ../../07_PreFiltering/
+awk '{sum+=$1} END {print sum}' countCallsList # 66,887,744 calls -> multuply by 0.00145 = ~ 100,000 calls
+```
+
+```bash
+# Randomly pull sites from each BCF (only biallelic sites) to equal ~100,000 sites and then concatenate, will take approx 2 hours. Alternatively, could have randomly pull ~100,000 calls from a concatenated bcf (biallelic sites only), but would take 20+ hours
+
+# Move to scripts directory
+cd ../Scripts/07_PreFiltering_scripts
+
+# Make a script called pullSubsets.sh to randomly pull sites from each BCF (biallelic) totalling to ~100,000 calls
+# Submit array job, batch job 46443715
+sbatch -A naiss2023-5-262 --array=1-334 --ntasks=1 -t 5:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering -e ../Job_logs/07_PreFiltering_logs/pullSubsets.err -J pullSubsets --mail-user=ar4666al-s@student.lu.se --mail-type=ALL pullSubsets.sh
+```
+Outputs, option 1: 1 output VCF file per region (chromosome/scaffold), 334 BCF files total. Outputs are named 126sample_[regionID]_biallelicSites_subset.vcf and are located in the 07_PreFiltering directory
+
+```bash
+# Move to scripts directory if not already there
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts/07_PreFiltering_scripts
+
+# Create a script called concatSubsetVCFs.sh to concatenate the subset VCFs into one VCF
+# Submit job, batch job 46444847
+sbatch -A naiss2023-5-262 -p node -t 1:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering -e ../Job_logs/07_PreFiltering_logs/concat_subsets.err -J concat_subsets --mail-user=ar4666al-s@student.lu.se --mail-type=ALL concatSubsetVCFs.sh
+```
+Output: 1 output, compressed VCF file called sparrow_biallelics_subset.vcf.gz located in the 07_PreFiltering directory
+
+```bash
+# To make the 07_PreFiltering directory easier to navigate, move the individidual subset files to their own directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering
+mkdir Subsets
+mv *biallelicSites_subset.vcf ./Subsets
+```
+
+```bash
+# Move to 07_PreFiltering directory if not already there
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering
+
+# Start an interactive environment
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load bcftools/1.14
+
+# Concatenate autosomes and scaffold subsets into one vcf
+for vcf in ./Subsets/*biallelicSites_subset.vcf; do # ${vcf} contains entire path
+
+    prefix=$(basename "$vcf" .vcf)
+
+    if [[ "$prefix" == *CM071456.1* || "$prefix" == *CM071464.1* ]]; # if Z chrom (CM071456.1) or W chrom (CM071464.1)
+    then
+        continue
+    else
+        echo ${vcf} >> VCFsubset_paths_autosomal
+    fi
+done
+
+bcftools concat --threads 20 --file-list VCFsubset_paths_autosomal -Oz -o sparrow_biallelics_subset_AUTOSOMES.vcf.gz
+
+# Concatenate the sex chromosome subsets
+for vcf in ./Subsets/*biallelicSites_subset.vcf; do # ${vcf} contains entire path
+
+    prefix=$(basename "$vcf" .vcf)
+
+    if [[ "$prefix" == *CM071456.1* || "$prefix" == *CM071464.1* ]]; # if Z chrom (CM071456.1) or W chrom (CM071464.1)
+    then
+        echo ${vcf} >> VCFsubset_paths_sex
+    else
+        continue
+    fi
+done
+
+bcftools concat --threads 20 --file-list VCFsubset_paths_sex -Oz -o sparrow_biallelics_subset_SEX.vcf.gz
+
+# Create compressed VCFs for the individual sex chromosome subsets
+bcftools view ./Subsets/126sample_CM071456.1_biallelicSites_subset.vcf -Oz -o sparrow_biallelics_subset_zChrom.vcf.gz
+bcftools view ./Subsets/126sample_CM071464.1_biallelicSites_subset.vcf -Oz -o sparrow_biallelics_subset_wChrom.vcf.gz
+```
+Output: 4 compressed VCF files, named as shown above, located in the 07_PreFiltering directory
+
+```bash
+# index the compressed VCFs
+bcftools index sparrow_biallelics_subset.vcf.gz
+bcftools index sparrow_biallelics_subset_AUTOSOMES.vcf.gz
+bcftools index sparrow_biallelics_subset_SEX.vcf.gz
+bcftools index sparrow_biallelics_subset_zChrom.vcf.gz
+bcftools index sparrow_biallelics_subset_wChrom.vcf.gz
+```
+Output: 5 output files that follow this format: [inputFileName].csi, located in the 07_PreFiltering directory 
+
+## Generate stats for the concatenated subset VCFs, following workflow from https://speciationgenomics.github.io/filtering_vcfs/
+```bash
+# Start new interactive environment if necessary
+interactive -A naiss2023-5-262 -n 1 -t 1:00:00
+module load bioinfo-tools
+module load vcftools/0.1.16
+```
+### Stats for sparrow_biallelics_subset.vcf.gz
+```bash
+# Create a subdirectory called VCFtools
+mkdir VCFtools
+
+# Set environmental variables
+SUBSET_VCF=/proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering/sparrow_biallelics_subset.vcf.gz
+OUT=/proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering/VCFtools/sparrow_biallelics_subset
+
+# Calculate allele frequency for each variant
+# don't need to specify --max-alleles 2 as we've already filtered to just have biallelic
+vcftools --gzvcf $SUBSET_VCF --freq2 --out $OUT  # sparrow_biallelics_subset.frq
+
+# Calculate the mean depth of coverage per individual
+vcftools --gzvcf $SUBSET_VCF --depth --out $OUT # sparrow_biallelics_subset.idepth
+
+# Estimate the mean depth of coverage for each site
+vcftools --gzvcf $SUBSET_VCF --site-mean-depth --out $OUT # sparrow_biallelics_subset.ldepth.mean
+
+# Extract the site quality score for each site
+vcftools --gzvcf $SUBSET_VCF --site-quality --out $OUT # sparrow_biallelics_subset.lqual
+
+# Calculate proportion of missing data per sample/individual
+vcftools --gzvcf $SUBSET_VCF --missing-indv --out $OUT # sparrow_biallelics_subset.imiss
+
+# Calculate proportion of missing data per site
+vcftools --gzvcf $SUBSET_VCF --missing-site --out $OUT # sparrow_biallelics_subset.lmiss
+
+# Calculate heterozygosity and inbreeding coefficient per individual! Note: individuals are from different pops -> "the expected heterozygosity will be overestimated due to the Wahlund-effect" (source: https://speciationgenomics.github.io/filtering_vcfs/)
+vcftools --gzvcf $SUBSET_VCF --het --out $OUT # sparrow_biallelics_subset.het
+
+### Repeat steps from setting environmental variables onward for: sparrow_biallelics_subset_AUTOSOMES.vcf.gz, sparrow_biallelics_subset_SEX.vcf.gz, sparrow_biallelics_subset_zChrom.vcf.gz, sparrow_biallelics_subset_wChrom.vcf.gz
+```
+Outputs: 35 output files named [inputFilePrefix].[calculationType] located in the VCFtools subdirectory
+
+## Move to R on local computer to visual stat we generated, following workflow from https://speciationgenomics.github.io/filtering_vcfs/
+
+```bash
+# Within project directory of local computer, create a directory to store the stats we just generate
+mkdir VCF_filteringThreshold_stats
+cd VCF_filteringThreshold_stats
+
+# Copy VCFtools directory from server to local
+scp -r arianna2@rackham.uppmax.uu.se:/proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering/VCFtools .
+
+# Create an R script within the VCF_filteringThreshold_stats directory called vcfStats.R
+```
+
+### Pull subsets again for sex chromosomes, try for a more representative sample to double check, following workflow from https://speciationgenomics.github.io/filtering_vcfs/
+```bash
+# Move to scripts directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts/07_PreFiltering_scripts
+
+# Create jobs to re-run subsetting for Z and W, mainly to get a larger subset for W
+# 570,763 biallelic sites for W, pull ~ 80,000 for subset
+# 3,398,265 biallelic sites for Z, pull ~ 80,000 for subset
+
+# batch job 46476787
+sbatch -A naiss2023-5-262 -p core -n 1 -t 5:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering -e ../Job_logs/07_PreFiltering_logs/subsetRedoW.err -J subsetRedoW --mail-user=ar4666al-s@student.lu.se --mail-type=ALL pullSubsets_redoW.sh
+
+# batch job 46476823
+sbatch -A naiss2023-5-262 -p core -n 1 -t 5:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering -e ../Job_logs/07_PreFiltering_logs/subsetRedoZ.err -J subsetRedoZ --mail-user=ar4666al-s@student.lu.se --mail-type=ALL pullSubsets_redoZ.sh
+
+# Start an interactive session
+interactive -A naiss2023-5-262 -n 1 -t 1:00:00
+module load bioinfo-tools
+module load vcftools/0.1.16
+
+# Compress the new vcf subsets
+bcftools view ./Subsets/126sample_CM071456.1_biallelicSites_subset_REDO.vcf -Oz -o sparrow_biallelics_subset_zChrom_REDO.vcf.gz
+bcftools view ./Subsets/126sample_CM071464.1_biallelicSites_subset_REDO.vcf -Oz -o sparrow_biallelics_subset_wChrom_REDO.vcf.gz
+
+# index the compressed VCFs
+bcftools index sparrow_biallelics_subset_zChrom_REDO.vcf.gz
+bcftools index sparrow_biallelics_subset_wChrom_REDO.vcf.gz
+
+## Rerun stats on these new subsets. Repeat steps from setting environmental variables onward for: sparrow_biallelics_subset_zChrom_REDO.vcf.gz, sparrow_biallelics_subset_wChrom_REDO.vcf.gz
+
+```
+## Check for duplicate positions before filtering
+```bash
+# Move to 07_PreFiltering_scripts
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts/07_PreFiltering_scripts
+
+# Create a script which checks for duplicate positions called checkDups.sh
+
+# Check for duplicates, batch job 46476877
+sbatch -A naiss2023-5-262 --array=1-334 --ntasks=1 -t 2:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering -e ../Job_logs/07_PreFiltering_logs/checkDups.err -J checkdups --mail-user=ar4666al-s@student.lu.se --mail-type=ALL checkDups.sh
+
+# Move to 07_PreFiltering
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/07_PreFiltering
+
+# Open the output file which shows if duplicates exist
+cat bcf_contains_dups_list # no duplicates!
+```
+
+# Filter
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+mkdir 08_Filtering
+cd 08_Filtering
+
+# Pull paths to biallelic bcfs - AUTOSOMES & Z only, won't look at W for now (very minimal female samples, very low depth)!!
+for bcf in ../06_BiallelicSiteBCFs/*bcf; do
+
+    prefix=$(basename "$bcf" .bcf)
+
+    if [[ "$prefix" == *CM071464.1* ]]; # if W chrom (CM071464.1)
+    then
+        continue # don't do anything
+    else
+        echo ${bcf} >> biallelic_bcf_paths_autosomesZ # append path to autosomal & Z bcf to the list
+    fi
+done
+
+# Create two different sub-directories to store vcfs with different filtering parameters
+mkdir InclMaxMissing
+mkdir SansMaxMissing
+
+# Move to the scripts directory
+cd Scripts
+mkdir 08_Filtering_scripts
+
+# Create two scripts for filtering! One which contains a filter for the --max-missingess parameter (filterBiallelic_autosomesZ_inclMaxMiss.sh) and one that doesn't (filterBiallelic_autosomesZ_sansMaxMiss.sh)
+
+# Includes max-missingness parameter, submitted batch job 46594888
+sbatch -A naiss2023-5-262 --array=1-333 --ntasks=20 -t 6:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/08_Filtering/InclMaxMissing -e ../../Job_logs/08_Filtering_logs/InclMaxMissing/filtering_autosomesZ_%a.err -o ../../Job_logs/08_Filtering_logs/InclMaxMissing/filtering_autosomesZ_%a.out -J filtering_autosomesZ_inclMaxMiss --mail-user=ar4666al-s@student.lu.se --mail-type=ALL filterBiallelic_autosomesZ_inclMaxMiss.sh
+
+# Includes max-missingness parameter, submitted batch job 46611874
+sbatch -A naiss2023-5-262 --array=1-333 --ntasks=20 -t 5:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/08_Filtering/SansMaxMissing -e ../../Job_logs/08_Filtering_logs/SansMaxMissing/filtering_autosomesZ_%a.err -o ../../Job_logs/08_Filtering_logs/SansMaxMissing/filtering_autosomesZ_%a.out -J filtering_autosomesZ_sansMaxMiss --mail-user=ar4666al-s@student.lu.se --mail-type=ALL filterBiallelic_autosomesZ_sansMaxMiss.sh
+```
+Outputs: 334 compressed VCF files in each subdirectory (InclMaxMissing and SansMaxMissing) of 08_Filtering. Files are named 126sample_[regionID]_biallelicSites_filtered.vcf.gz
+
+## Concatenate the scaffold VCFs
+```bash
+# Request an interactive environment
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load bcftools/1.14
+
+# Move to filtering directory if not there already
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/08_Filtering
+
+# First, work on the filtered VCFs in the InclMaxMissing directory
+cd InclMaxMissing
+
+# Make a subdirectory to store filtered scaffolds
+mkdir AllScaffolds_biallelicSites
+
+# Move all the scaffolds into that subdriectory
+for vcf_gz in ./*_biallelicSites_filtered.vcf.gz; do # ${vcf} contains entire path
+
+    prefix=$(basename "$vcf_gz" .vcf.gz)
+
+    if [[ "$prefix" == *JAZGKA010000010.1* || "$prefix" == *JAZGKA010000030.1* || "$prefix" == *CM0714* ]]; # chromosomes (CM0714), SUPER_8 (JAZGKA010000010.1), SUPER_26 (JAZGKA010000030.1)
+    then
+        continue
+    else
+       mv ${vcf_gz} AllScaffolds_biallelicSites
+    fi
+done
+
+# Concatenate the scaffolds, the output will be located in the InclMaxMissing directory!
+bcftools concat --threads 20 126sample_AllScaffolds_biallelicSites/*vcf.gz -Oz -o 126sample_scaffolds_biallelicSites_filtered.vcf.gz
+
+# Archive and compress the entire directory containing filtered scaffolds
+tar -cvzf AllScaffolds_biallelicSites.tar.gz AllScaffolds_biallelicSites
+rm -r AllScaffolds_biallelicSites # remove the non-archived/non-compressed version of the directory
+
+# Follow the same steps as above for the files in the SansMaxMissing directory
+```
+Outputs: 1 compressed VCF file in each subdirectory (InclMaxMissing and SansMaxMissing) of 08_Filtering called 126sample_scaffolds_biallelicSites_filtered.vcf.gz. 1 archived and compressed directory in each subdirectory (InclMaxMissing and SansMaxMissing) of 08_Filtering called AllScaffolds_biallelicSites.tar.gz
