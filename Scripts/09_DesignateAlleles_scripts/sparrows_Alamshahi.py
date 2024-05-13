@@ -18,7 +18,7 @@ User-defined functions: designate_alleles
 
 Non-standard modules: none
     
-Required inputs: VCF file and tsv file of bird IDs and associated population
+Required inputs: VCF file, tsv file of bird IDs and associated population, comma separated list of cutoffs
 Optional inputs: tmin & tmax (defaults if user doesn't profide), tsv with alternate chromosome names
 
 Output: TSV that shows locus, allele frequency (House, Spanish, Tree), 
@@ -137,7 +137,6 @@ if 9 <= len(sys.argv) <= 15: #and Path(sys.argv[1:2]).is_file():
     cutoffs = sys_dict['-c']
     
     tmin = float(sys_dict['-tmin'])
-    print(tmin)
     
     tmax = float(sys_dict['-tmax'])
     
@@ -305,7 +304,7 @@ for cutoff in strcuts:
 
 # Create sets for existence checks later on
 threelilbirbs = {'House','Spanish','Tree'}
-italian = {'Sardinia','Malta','Corsica','Crete'}
+italian = {'Sicily','Malta','Corsica','Crete'}
 
 # Create empty dictionaries for existence checks later on (when using the list instead of dict)
 TLBindices = {} # TLB = threelilbirbs
