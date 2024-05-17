@@ -49,6 +49,7 @@ class ArgumentNotSpecified(Exception):
     pass
 
 #%%% Allow program to be ran from the terminal
+# Using a combination of sys.argv & a dictionary to allow users to use "flags", while still being able to tab complete (unlike arg.parse)
             
 # will only run if minimum 9 args provided, max 15 args, and the VCF and population tsv are both files
 if 9 <= len(sys.argv) <= 15: #and Path(sys.argv[1:2]).is_file():
@@ -163,8 +164,8 @@ except WrongNumberArguments:
 ''' The designate_alleles function will output 2 dictionaries. When we call on this function in the script, 
 we will name the output directories as allele_designations and afs
 
-allele_frequencies: uses alleles (0, 1, and 2) as keys and minor allele frequency ([housemaf], [spanishmaf], [treemaf]) as values (tuples)
-allele_designations: uses alleles (0, 1, and 2) as keys and designation (ancestral, derived, neither) as values (tuples)
+allele_frequencies: uses alleles (0 and 1) as keys and minor allele frequency ([housemaf], [spanishmaf], [treemaf]) as values (tuples)
+allele_designations: uses alleles (0 and 1) as keys and designation (ancestral, derived, neither) as values (tuples)
 
 
 Per Joel: "It ignores missing calls, so if many calls are missing for e.g. Spanish sparrows, it is very unlikely 
@@ -172,7 +173,7 @@ that an allele can be designated 'Spanish', since the division does not take int
 but assumes zero missingness. I think it's best this way"
 '''
 
-def designate_alleles(cut,alleles,private_allele):
+def designate_alleles(cut,alleles):
     
     # Create an empty dictionary store allele frequencies
     allele_frequencies	= {}
@@ -226,34 +227,12 @@ def designate_alleles(cut,alleles,private_allele):
             else: # implies derived
                 tree = False
         
-        
-        # If triallelic, one REF and two ALT
-        elif nalleles == 3:
-            
-			# We can assume, because of the skipping rules, that the Tree sparrow has two alleles,
-			# one of which is private. The not private one is thus Ancestral, and the other Derived.
-			# The private allele will be called Tree, denoted with a 'T'. It's S/H value will be '-'.
-            if allele == private_allele:
-                tree = 'private'
-                
-            elif alleles[allele]['Tree'] == 0: # implies derived
-                tree = False
-                
-            else: # implies ancestral
-                tree = True
-        
         # Error handling, can improve
         else:
             print('Something\'s very wrong...',file=sys.stderr) ; sys.exit()
 
-
-		# Bring previous steps together with by appending to allele_designations dictionary
-        if tree =='private':
-            
-            allele_designations[allele] = ('neither','tree') # then dict should indicate neither house nor spanish
-            
-            
-        elif tree: # if tree == True, meaning the allele is found in tree sparrow
+		# Bring previous steps together with by appending to allele_designations dictionary                     
+        if tree: # if tree == True, meaning the allele is found in tree sparrow
             
             if spanish and not house: # if spanish == True and house == False
             
@@ -341,6 +320,7 @@ with open(input_popmap, 'r') as birbPops: # open the file containing birdID and 
 Nbirbs = Nhouse + Nspanish + Ntree
 
 #%% Parse input - pull the #CHROM header line
+
 with open (input_VCF, 'r') as VCF:
     
     for header in VCF:
@@ -363,7 +343,8 @@ for i,birb in enumerate(birds): # enurmerate birds, returns an index (i) and ass
         
         Iindices[i]=birb # then append to Iindices dictionary where key is index (i) and birb (birdID) is value
 
-#%%
+#%% Deal with alternate chromosome name if user provided it
+
 if chromNames != None: # if chromNames is not empty
     chromNames_dict = {} # initialize empty dictionary
     
@@ -389,18 +370,18 @@ with open(input_VCF, "r") as VCF:
             # Create a string which stores locus, chromosome_position_refAllele_altAllele
             locus = '_'.join([fields[0], fields[1], fields[3], fields[4]]) # pull chromosome, position, refAllele, altAllele and join by underscore
             
-            if chromNames != None: # if chromNames is not empty
-                updated_locus = locus
+            if chromNames != None: # if chromNames is not empty, user provided alt list
+                
+                updated_locus = locus # created an updated locus variable based on original
+                
                 for longChrom, numberChrom in chromNames_dict.items():
-                    updated_locus = updated_locus.replace(longChrom, numberChrom)
-
+                    updated_locus = updated_locus.replace(longChrom, numberChrom) # replace the original chrom name with alternate
 
             # Determine the number of alleles at this locus
             nalleles = fields[4].count(',') + 2 # counts the number of commas present in the ALT allele section and then adds 2 (will defintiley have 1 value for REF and 1 for ALT)
-            # e.g. if there is one comma, means there are 2 ALTs and 1 Ref -> this calc will output 3
 
-            # If it is a multiallelic site:
-            if nalleles > 3:
+            # If it is a triallelic/multialleic site (aka not biallelic):
+            if nalleles > 2:
                 continue # Then skip-rule 4
             
             # Initiate an empty list to store genotypes at that locus
@@ -446,10 +427,8 @@ with open(input_VCF, "r") as VCF:
                 
             # Establish a nested allele count dictionary
             # alleles (0, 1, and 2) as keys and nested within the values are keys for House/Spanish/Tree with associate counts as values
-            if nalleles==2: 
+            if nalleles == 2: 
                 alleles={'0':{'House':0,'Spanish':0,'Tree':0},'1':{'House':0,'Spanish':0,'Tree':0}}
-            elif nalleles==3: 
-                alleles={'0':{'House':0,'Spanish':0,'Tree':0},'1':{'House':0,'Spanish':0,'Tree':0},'2':{'House':0,'Spanish':0,'Tree':0}}
             
             # Loop over birbs in order
             for i,genotype in enumerate(locusdata): # i is the index for the genotype, genotype = genotype in locusdata
@@ -474,55 +453,25 @@ with open(input_VCF, "r") as VCF:
     		# The remaining skip-rules
             if nalleles == 2: # if biallelic
                 
-                private_allele = False # then no private allele for tree
-                
     			# Skip-rule 5
                 # If the lowest alelle count out of allele 0 and 1 for Tree is less than tmax
                 if min(alleles['0']['Tree'],alleles['1']['Tree']) > tmax:
                     continue # then start next iteration of loop
-                
-            if nalleles == 3: # if triallelic, one REF two ALTs
-    			
-                # First find out if there is a private allele (just one, because two implies Spanish == House)
-                # Keep track of the number of private alleles (0, 1, or 2)
-                pvtcount = 0 
-                count = 0
-                
-                for allele in alleles: # loop through the alleles dict, allele (0, 1, 2) as key
-                    
-                    # if the count of the allele for House and Spanish are 0, and the count for Tree is not 0
-                    if alleles[allele]['House'] == alleles[allele]['Spanish'] == 0 and alleles[allele]['Tree']!=0 :
-                        
-                        private_allele = allele # then that allele is a private allele
-                        
-                        pvtcount += 1 # and we should increase the private allele count by 1
-                        
-                    elif alleles[allele]['Tree'] != 0: # if the allele count for tree is not 0, but the other conditions aren't met
-                        
-                        count += 1 # then increase the non-private allele count by 1
-
-    			# Skip-rule 6:
-                if not pvtcount == 1 or not count == 2: # if the private allele count is one, or the non-private count is not 2
-                    continue # then skip-rule 6
-                    
-    			#Skip-rule 7:
-                if alleles[private_allele]['Tree'] < tmin: # use the private allele as key for alleles, if the count of Tree for that allele is less than tmin
-                    continue # then skip-rule 7
 
 
     		# Create long lists per user supplied cutoff
             for cut in cutoffs_dict: # "cut" pulls cutoffs as keys
             
                 
-                # Run the function designate_alleles(cuttof value,alleles dictionary,private_allele(true or false))
-                allele_designations, afs = designate_alleles(cut,alleles,private_allele) # save outputs (allele_designatations and allele_frequencies) into allele designations and afs respectively
+                # Run the function designate_alleles(cuttof value,alleles dictionary)
+                allele_designations, afs = designate_alleles(cut,alleles) # save outputs (allele_designatations and allele_frequencies) into allele designations and afs respectively
 
                 # Create a list to eventually store all items we want to print in a row for output
                 if chromNames != None: # if chromNames is not empty, then we will include the updated locus
-                    row = [locus,updated_locus,str(nalleles)] # first entry is locus, second is number of alleles (string)
+                    row = [locus,updated_locus] # first entry is locus, second is alt locus
                     
                 elif chromNames == None: # if chromNames is empty, then there is no alternate chrom name and no updated locus
-                    row = [locus,str(nalleles)]
+                    row = [locus] # first entry is locus
     			
                 # Pull values for the first three allele frequency columns
                 if nalleles==2: # if biallelic
@@ -532,18 +481,31 @@ with open(input_VCF, "r") as VCF:
                     
                     treemaf = afs['0'][2]+'/'+afs['1'][2]
                     
-                if nalleles==3: # if triallelic
-                    housemaf = afs['0'][0]+'/'+afs['1'][0]+'/'+afs['2'][0] # extracts allele frequencies for house sparrow as a string separated by "/"
-                    
-                    spanishmaf = afs['0'][1]+'/'+afs['1'][1]+'/'+afs['2'][1]
-                    
-                    treemaf = afs['0'][2]+'/'+afs['1'][2]+'/'+afs['2'][2]
-                    
                 
                 # Append the house minor allele frequency string to the row list
                 row.append(housemaf)
                 row.append(spanishmaf)
                 row.append(treemaf)
+
+                # Designate the site!
+                site_designation = "" # initiate empty string to store designation
+                
+                for ALLELE, (PARENT, A_or_D) in allele_designations.items(): # search through the dictionary where ALLELE is key and PARENT,A_OR_D are values (tuple)
+
+                    if A_or_D == "derived":
+
+                        if PARENT == "house":
+                            site_designation = "HD"
+                            
+                        elif PARENT == "spanish":
+                            site_designation = "SD"
+                            
+                        else: # when "neither dervied"
+                            site_designation = "ND"
+                    else:
+                        continue
+
+                    row.append(site_designation) # append the designation to the row, after tree allele frequency
                 
                 # The birbs themselves
                 skip = True # set skip equal to True to begin with
@@ -605,9 +567,9 @@ with open(input_VCF, "r") as VCF:
 
 # Set the header for the output file
 if chromNames != None: # if chromNames is not empty
-    header = ['#Locus','locus_AltFormat','num_alleles','House_af','Spanish_af','Tree_af']+[bird for bird in birds if groups[bird] in italian]
+    header = ['#Locus','locus_AltFormat','House_af','Spanish_af','Tree_af','Site_Designation']+[bird for bird in birds if groups[bird] in italian]
 elif chromNames == None: # if chromNames is empty
-    header = ['#Locus','num_alleles','House_af','Spanish_af','Tree_af']+[bird for bird in birds if groups[bird] in italian]
+    header = ['#Locus','House_af','Spanish_af','Tree_af','Site_designation']+[bird for bird in birds if groups[bird] in italian]
 
 
 # Loop through the cuttofs dictionary and the list of cutoffs
