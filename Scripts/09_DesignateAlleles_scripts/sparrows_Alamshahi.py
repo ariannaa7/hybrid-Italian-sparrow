@@ -196,15 +196,19 @@ def designate_alleles(cut,alleles):
         
         # Append the allele frequencies to the dictionary
         allele_frequencies[allele]=(str(house_af),str(spanish_af),str(tree_af)) # key is alelle (0, 1, 2) and values are tuples of strings with the frequencies
-
+        
+        # How many digits to round to when designating house/spanish/neither?
+        cut_str = str(cut)
+        if "." in cut_str:
+            decimalNumber = cut_str.split('.')[1] # determine the number of decimal places in the cutoff!
         
 		# Is this allele Spanish or House? Does not depend on the number of alleles
-        if spanish_af > cut and house_af < (1-cut): # if spanish allele freq is higher than the cutoff and house allele freq is lower than 1-cutoff
+        # Round because of float issue (e.g. 1-0.9 = 09999999999999998 rather than 0.1 which can affect designations!)
+        if spanish_af >= cut and house_af <= round(1-cut,len(decimalNumber)): # if spanish allele freq is higher than the cutoff and house allele freq is lower than 1-cutoff
             spanish = True # we designate it as spanish
             house = False # we DO NOT designate it as house
             
-        
-        elif house_af > cut and spanish_af	< (1-cut): # if house allele freq is higher than the cutoff and spanish allele freq is lower than 1-cutoff
+        elif house_af >= cut and spanish_af	<= round(1-cut,len(decimalNumber)): # if house allele freq is higher than the cutoff and spanish allele freq is lower than 1-cutoff
             spanish = False # we DO NOT designate it as spanish
             house = True # we designate it as house
             
