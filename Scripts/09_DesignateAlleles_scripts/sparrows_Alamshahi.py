@@ -19,7 +19,7 @@ User-defined functions: designate_alleles
 Non-standard modules: none
     
 Required inputs: VCF file, tsv file of bird IDs and associated population, comma separated list of cutoffs
-Optional inputs: tmin & tmax (defaults if user doesn't profide), tsv with alternate chromosome names
+Optional inputs: tmax (default if user doesn't provide) & tsv with alternate chromosome names
 
 Output: TSV that shows locus, allele frequency (House, Spanish, Tree), 
 and designations (House specific/Spanish specific, Ancestral/Derived) for each sample 
@@ -52,13 +52,13 @@ class ArgumentNotSpecified(Exception):
 # Using a combination of sys.argv & a dictionary to allow users to use "flags", while still being able to tab complete (unlike arg.parse)
             
 # will only run if minimum 9 args provided, max 15 args, and the VCF and population tsv are both files
-if 9 <= len(sys.argv) <= 15: #and Path(sys.argv[1:2]).is_file():
+if 9 <= len(sys.argv) <= 13: #and Path(sys.argv[1:2]).is_file():
     
     sparrows_python = sys.argv[0] # sparrows_Alamshahi.py
     
     # Initialize a template dictionary to store flags and user provided arguments
-    sys_dict = {'-h':'-v: the path to the VCF file\n-b: the path to the tsv file that assigns individual birds to groups/populations\n-c: a comma-delimited string of cut-offs\n-tmin: tree sparrows\' minimum allele count when analyzing triallelic loci, default 2\n-tmax: tree sparrows\' max minor allele count when analyzing biallelic loci, default 1\n-n: (optional) path to tsv file which has chromosome name used in vcf and corresponding chromosome name using chromosme numbers (e.g. chr1)\n-o: the prefix of the output file',
-                '-v':None, '-b':None, '-c':None, '-tmin':2,'-tmax':1, '-n':None, '-o':None}
+    sys_dict = {'-h':'-v: the path to the VCF file\n-b: the path to the tsv file that assigns individual birds to groups/populations\n-c: a comma-delimited string of cut-offs\n-tmax: tree sparrows\' max minor allele count when analyzing biallelic loci, default 1\n-n: (optional) path to tsv file which has chromosome name used in vcf and corresponding chromosome name using chromosme numbers (e.g. chr1)\n-o: the prefix of the output file',
+                '-v':None, '-b':None, '-c':None,'-tmax':1, '-n':None, '-o':None}
     
     # Add every sys.argv from index 1 onwards to this list
     sys_list = sys.argv[1:] 
@@ -137,8 +137,6 @@ if 9 <= len(sys.argv) <= 15: #and Path(sys.argv[1:2]).is_file():
     # Assign more arguments to variables
     cutoffs = sys_dict['-c']
     
-    tmin = float(sys_dict['-tmin'])
-    
     tmax = float(sys_dict['-tmax'])
     
     # Optional to provide tsv of alt chrom names!
@@ -152,7 +150,7 @@ if 9 <= len(sys.argv) <= 15: #and Path(sys.argv[1:2]).is_file():
     
 # Error handling! If more than 15 or less than 9 arguments are provided
 try:
-    if len(sys.argv) > 15 or len(sys.argv) < 9:
+    if len(sys.argv) > 13 or len(sys.argv) < 9:
         raise WrongNumberArguments
         
 except WrongNumberArguments:
@@ -380,7 +378,7 @@ with open(input_VCF, "r") as VCF:
             # Determine the number of alleles at this locus
             nalleles = fields[4].count(',') + 2 # counts the number of commas present in the ALT allele section and then adds 2 (will defintiley have 1 value for REF and 1 for ALT)
 
-            # If it is a triallelic/multialleic site (aka not biallelic):
+            # If it is a triallelic/multialleic site:
             if nalleles > 2:
                 continue # Then skip-rule 4
             
@@ -558,7 +556,7 @@ with open(input_VCF, "r") as VCF:
                         row.append(''.join(cats)) # join all entries currently in cats as one string, then append to row
                             
                 if skip: # if skip is still equal to true
-                    continue # Skip-rule 9
+                    continue # Skip-rule 6
                 
                 # use the cuttoff as a key, and append the joined row (all entries of list on one line) with a tab separator
                 cutoffs_dict[cut].append('\t'.join(row))
