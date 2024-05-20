@@ -553,8 +553,11 @@ with open(input_VCF, "r") as VCF:
                             
                         cats.insert(2,'/') # append "/" at index [2] of the list to separate the designation for each allele
                         
-                        row.append(''.join(cats)) # join all entries currently in cats as one string, then append to row
-                            
+                        # Join the entries in cats as one string and replace instances of spanish ancestral & house ancestral to just ancestral
+                        joined_cats = ''.join(cats).replace("SA", "A").replace("HA","A")
+                        
+                        row.append(joined_cats) # append contents of cats (e.g. SD/A) to row
+                       
                 if skip: # if skip is still equal to true
                     continue # Skip-rule 6
                 
