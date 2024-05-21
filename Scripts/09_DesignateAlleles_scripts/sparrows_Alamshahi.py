@@ -37,6 +37,9 @@ import sys
 # Regex used in file format verification
 import re
 
+# Used to create deepcopy of final output dictionary (values are lists, need deepcopy to not update original)
+import copy
+
 #%% Error handling hub - for custom exceptions! 
 
 class WrongNumberArguments(Exception):
@@ -58,7 +61,7 @@ if 7 <= len(sys.argv) <= 13: #and Path(sys.argv[1:2]).is_file():
     
     # Initialize a template dictionary to store flags and user provided arguments
     sys_dict = {'-h':'-v: the path to the VCF file\n-b: the path to the tsv file that assigns individual birds to groups/populations\n-c: a comma-delimited string of cut-offs\n-tmax: tree sparrows\' max minor allele count when analyzing biallelic loci, default 1\n-n: (optional) path to tsv file which has chromosome name used in vcf and corresponding chromosome name using chromosme numbers (e.g. chr1)\n-o: the prefix of the output file',
-                '-v':None, '-b':None, '-c':'0.80,0.85,0.90,0.95,0.99,1.00','-tmax':1, '-n':None, '-o':None}
+                '-v':None, '-b':None, '-c':'0.80,0.85,0.90,0.95,0.99','-tmax':1, '-n':None, '-o':None}
     
     # Add every sys.argv from index 1 onwards to this list
     sys_list = sys.argv[1:] 
@@ -204,14 +207,15 @@ def designate_alleles(cut,alleles):
         
 		# Is this allele Spanish or House? Does not depend on the number of alleles
         # Round because of float issue (e.g. 1-0.9 = 09999999999999998 rather than 0.1 which can affect designations!)
-        if spanish_af >= cut and house_af <= round(1-cut,len(decimalNumber)): # if spanish allele freq is higher than the cutoff and house allele freq is lower than 1-cutoff
+        if spanish_af > cut and house_af < round(1-cut,len(decimalNumber)): # if spanish allele freq is higher than the cutoff and house allele freq is lower than 1-cutoff
             spanish = True # we designate it as spanish
             house = False # we DO NOT designate it as house
             
-        elif house_af >= cut and spanish_af	<= round(1-cut,len(decimalNumber)): # if house allele freq is higher than the cutoff and spanish allele freq is lower than 1-cutoff
+        elif house_af > cut and spanish_af	< round(1-cut,len(decimalNumber)): # if house allele freq is higher than the cutoff and spanish allele freq is lower than 1-cutoff
             spanish = False # we DO NOT designate it as spanish
             house = True # we designate it as house
             
+            # don't do >= or <=, doesn't make a difference for 0.99 to 1.00 cutoff. Any 1.00 will be located within 0.99 so adding equal is unecessary and will increase sites for lower cutoffs
         
         else:  # If neither of the above sets of conditions are met, then we cannot designate as spanish nor house
             spanish = False
@@ -503,7 +507,7 @@ with open(input_VCF, "r") as VCF:
                             site_designation = "SD"
                             
                         else: # when "neither dervied"
-                            site_designation = "ND"
+                            site_designation = "ND" # in final output, - indicates missing, but in this case (-D) we know that it is derived (just don't know from which parent)
                     else:
                         continue
 
@@ -557,16 +561,24 @@ with open(input_VCF, "r") as VCF:
                             
                         cats.insert(2,'/') # append "/" at index [2] of the list to separate the designation for each allele
                         
-                        # Join the entries in cats as one string and replace instances of spanish ancestral & house ancestral to just ancestral
-                        joined_cats = ''.join(cats).replace("SA", "A").replace("HA","A")
+                        # Join the entries in cats as one strings then append to row
+                        row.append(''.join(cats)) # appends joined content of cats (e.g. SD/HA) to row
                         
-                        row.append(joined_cats) # append contents of cats (e.g. SD/A) to row
-                       
                 if skip: # if skip is still equal to true
                     continue # Skip-rule 6
                 
                 # use the cuttoff as a key, and append the joined row (all entries of list on one line) with a tab separator
                 cutoffs_dict[cut].append('\t'.join(row))
+                
+                # Create a DEEPCOPY of cutoffs dict
+                cutoffs_dict_A = copy.deepcopy(cutoffs_dict) 
+                
+                # Replace each instance of "SA" or "HA" with "A"
+                for cutoff_key, site_value in cutoffs_dict_A.items(): # iterate through dictionary
+
+                    for line in range(len(site_value)): # iterate through lists within dictionary 
+
+                        site_value[line] = site_value[line].replace("SA", "A").replace("HA", "A") # replace "SA" or "HA" with "A"
                 
 #%% Write output
 
@@ -577,10 +589,10 @@ elif chromNames == None: # if chromNames is empty
     header = ['#Locus','House_af','Spanish_af','Tree_af','Site_designation']+[bird for bird in birds if groups[bird] in italian]
 
 
-# Loop through the cuttofs dictionary and the list of cutoffs
+# Loop through the cutoffs_dict dictionary and the list of cutoffs (with SAHA)
 for cut,cutstr in zip(cutoffs_dict,strcuts):
     
-    with open(outputPrefix+'.designated_cutoff_'+cutstr+'.tsv','w') as f:
+    with open(outputPrefix+'.designated_cutoff_'+cutstr+'_SAHA.tsv','w') as f:
             
         f.write('\t'.join(header)+'\n')
             
@@ -588,3 +600,13 @@ for cut,cutstr in zip(cutoffs_dict,strcuts):
             
             f.write(row+'\n')
 
+# Loop through the cutoffs_dict_A dictionary and the list of cutoffs (without SAHA aka with A)
+for cut,cutstr in zip(cutoffs_dict_A,strcuts):
+    
+    with open(outputPrefix+'.designated_cutoff_'+cutstr+'_sansSAHA.tsv','w') as f:
+            
+        f.write('\t'.join(header)+'\n')
+            
+        for row in (cutoffs_dict_A)[cut]:
+            
+            f.write(row+'\n')
