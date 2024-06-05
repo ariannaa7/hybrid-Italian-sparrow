@@ -507,7 +507,7 @@ with open(input_VCF, "r") as VCF:
                             site_designation = "SD"
                             
                         else: # when "neither dervied"
-                            site_designation = "ND" # in final output, - indicates missing, but in this case (-D) we know that it is derived (just don't know from which parent)
+                            site_designation = "-D" # in final output, - indicates missing, but in this case (-D) we know that it is derived (just don't know from which parent)
                     else:
                         continue
 
@@ -601,12 +601,23 @@ for cut,cutstr in zip(cutoffs_dict,strcuts):
             f.write(row+'\n')
 
 # Loop through the cutoffs_dict_A dictionary and the list of cutoffs (without SAHA aka with A)
-for cut,cutstr in zip(cutoffs_dict_A,strcuts):
-    
-    with open(outputPrefix+'.designated_cutoff_'+cutstr+'_sansSAHA.tsv','w') as f:
-            
-        f.write('\t'.join(header)+'\n')
-            
-        for row in (cutoffs_dict_A)[cut]:
-            
-            f.write(row+'\n')
+if 'cutoffs_dict_A' in locals(): # if the cutoffs_dict_A extsts, then write it to output!
+    for cut,cutstr in zip(cutoffs_dict_A,strcuts):
+        
+        with open(outputPrefix+'.designated_cutoff_'+cutstr+'_sansSAHA.tsv','w') as f:
+                
+            f.write('\t'.join(header)+'\n')
+                
+            for row in (cutoffs_dict_A)[cut]:
+                
+                f.write(row+'\n')
+else: # if this dictionary doesn't exist, means that none of the user provided cutoffs pulled any sites
+    for cut,cutstr in zip(cutoffs_dict,strcuts):
+        
+        with open(outputPrefix+'.designated_cutoff_'+cutstr+'_sansSAHA.tsv','w') as f: #still call it _sansSAHA, will be empty tsv anyways
+                
+            f.write('\t'.join(header)+'\n')
+                
+            for row in (cutoffs_dict)[cut]:
+                
+                f.write(row+'\n')
