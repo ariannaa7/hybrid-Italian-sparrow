@@ -40,6 +40,10 @@ cd 01_FlagstatExistingBAM
 # Start an interactive environment
 interactive -A naiss2023-5-262 -n 16 -t 1:00:00 # should take ~45 minutes
 
+
+interactive -A naiss2023-5-262 -n 1 -t 3:00:00
+
+
 module load bioinfo-tools
 module load samtools/1.14
 
@@ -464,6 +468,7 @@ interactive -A naiss2023-5-262 -n 1 -t 1:00:00
 module load bioinfo-tools
 module load vcftools/0.1.16
 ```
+
 ### Stats for sparrow_biallelics_subset.vcf.gz
 ```bash
 # Create a subdirectory called VCFtools
@@ -541,8 +546,8 @@ bcftools index sparrow_biallelics_subset_zChrom_REDO.vcf.gz
 bcftools index sparrow_biallelics_subset_wChrom_REDO.vcf.gz
 
 ## Rerun stats on these new subsets. Repeat steps from setting environmental variables onward for: sparrow_biallelics_subset_zChrom_REDO.vcf.gz, sparrow_biallelics_subset_wChrom_REDO.vcf.gz
-
 ```
+
 ## Check for duplicate positions before filtering
 ```bash
 # Move to 07_PreFiltering_scripts
@@ -627,7 +632,7 @@ for vcf_gz in ./*_biallelicSites_filtered.vcf.gz; do # ${vcf} contains entire pa
 done
 
 # Concatenate the scaffolds, the output will be located in the InclMaxMissing directory!
-bcftools concat --threads 20 126sample_AllScaffolds_biallelicSites/*vcf.gz -Oz -o 126sample_scaffolds_biallelicSites_filtered.vcf.gz
+bcftools concat --threads 20 AllScaffolds_biallelicSites/*vcf.gz -Oz -o 126sample_scaffolds_biallelicSites_filtered.vcf.gz
 
 # Archive and compress the entire directory containing filtered scaffolds
 tar -cvzf AllScaffolds_biallelicSites.tar.gz AllScaffolds_biallelicSites
@@ -636,3 +641,1076 @@ rm -r AllScaffolds_biallelicSites # remove the non-archived/non-compressed versi
 # Follow the same steps as above for the files in the SansMaxMissing directory
 ```
 Outputs: 1 compressed VCF file in each subdirectory (InclMaxMissing and SansMaxMissing) of 08_Filtering called 126sample_scaffolds_biallelicSites_filtered.vcf.gz. 1 archived and compressed directory in each subdirectory (InclMaxMissing and SansMaxMissing) of 08_Filtering called AllScaffolds_biallelicSites.tar.gz
+
+## Index the filtered VCFs
+```bash
+# Move to 08_Filtering_scripts directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts/08_Filtering_scripts
+
+# Create a script to index all the filtered VCF files, call it index_filtered_VCFs.sh
+
+# Submit job to index the filtered VCF files, batch job 46616765
+sbatch -A naiss2023-5-262 -p core -n 1 -t 3:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/08_Filtering/ -e ../Job_logs/08_Filtering_logs/indexing.err -J indexing_filtered_VCFs --mail-user=ar4666al-s@student.lu.se --mail-type=ALL index_filtered_VCFs.sh
+```
+
+# Designate Alleles
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+mkdir 09_DesignateAlleles
+cd 09_DesignateAlleles
+mkdir Inputs
+cd Inputs
+```
+## Prep steps
+
+### Expand and modify the existing sparrows.py python script
+Notable changes:
+1. Output will include desingation for each SITE in addition to allele designations it already outputs for italians
+2. Will output two files, one that only shows "A" for ancestral and another that also shows ancestral parentage "SA" or "HA" for ease of use in downstream analysis
+4. Adressed bug caused by subtracting with a float (would miss sites that should've been designated). Will now round the 1-"cut" value up to the number of decimal places in "cut". If you want a 1.00 cutoff, enter 0.99!
+5. No longer compatible with tri-allelic loci. Only using bi-allelic for our purposes
+6. Provided use the option to include a tsv with alternate chromosome names
+7. Script will parse a complete VCF rather than require separae VCF and header files
+8. Updated command line usage from arg.parse to sys. Still allows for "flags" through a dictionary system
+9. Introduced more error handling
+10. Added more thorough line-by-line annotations
+11. Updated format to follow more of python script best practices
+
+### Pull popmap list
+```bash
+for dir in /proj/sparrowhybridization/Pitaliae/working/Arianna/01_FlagstatExistingBAM/*/; do # ${dir} contains entire path
+
+    popName=$(basename "$dir" _flagstats) # just the name of the specific directory is stored (e.g corsica)
+
+    # Change p_montanus name to tree, for ease in sparrows.py script
+    if [[ "$popName" == p_montanus ]]; # if the popuplation is p_montanus
+    then
+        popName="Tree" # then rename to "Tree"
+    else
+        popName=$(basename "$dir" _flagstats) # if not p_montanus, then keep name as is
+    fi
+
+    # Capitalize the first letter of the population
+    popName="${popName^}" 
+
+    # Pull the birdIDs and account for exceptions (e.g. changes made when generating VCF and true population of misc. files)
+    for flagstat in ${dir}/*.flagstat; do # for each file in the directory that ends in .bam
+
+        file=$(basename "$flagstat" .flagstat); # pull the basename, e.g. "K032_resorted_nodup_realigned"
+
+        birdID=$(basename "$flagstat" .flagstat | cut -d "_" -f 1) # pull the birdID, e.g. "K032"
+
+        # Account for exceptions!
+        if [[ "$file" == Rimini* || "$file" == Lesina* ]]; # Rimini and Lesina populations follow a different format
+        then
+            birdID=${file} # pull the basename, e.g. "Rimini_112"
+        else
+            # When VCF file was generated, the "K" was removed from this sampleID
+            if [[ "$birdID" == K034 ]];
+            then
+                birdID="034"
+            else
+                # This will reset the population for every misc. file (i.e 8934547, 8L19766, 8L52141, 8L52830, 8N05240, N33, M019, M036) to House
+                if [[ "$birdID" == 8934547 ]];
+                then
+                    popName="House"
+                else
+                    # Overwrite population for misc. N33, should be Tree
+                    if [[ "$birdID" == N33 ]];
+                    then
+                        popName="Tree"
+                    fi
+                fi
+            fi
+        fi
+
+        # capitalize the first letter of the birdID
+        birdID="${birdID^}" 
+        
+        # Don't include misc. M019 and M036 (remember their population is now called House)
+        if [[ "$birdID" == M0* && "$popName" == House ]];
+        then
+            continue
+        else
+            echo -e "${birdID}\t${popName}" >> popmap.tsv # create a tab separated list of birdID and associated population
+        fi
+
+    done
+done
+```
+Output: file called popmap.tsv which lists samples and associated populations in the following format: sample\tpopulation
+
+### Pull list of chromosome name associations
+```bash
+# Create a tab separated list of the provided chromosome name and associated chromosome number, for ease of recognition in designation file output
+cat  ../../Data/ReferenceGenome/GCA_036417665.1_bPasDom1.hap1_genomic.fna | grep ">" | tr -d ">" | sed 's/ Passer domesticus isolate bPasDom1 /\t/g' | sed 's/, whole genome shotgun sequence//g' | tr " " "_" | sed 's/chromosome_/chr/g' | sed 's/HAP1_SCAFFOLD_/scaffold/g' | sed 's/H_/scaffold/g' | sed 's/_unloc_1//g' | sed 's/_//g' > chromNames.tsv
+```
+Output: file called chromNames.tsv which lists genbank chrom ID and numerical chrom ID in the follow format: genbankID\tnumberID
+
+### Create decompressed versions of the VCFs
+```bash
+
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Inputs
+mkdir VCFs_SansMaxMissing # For our purposes, will move forward with VCFs that didn't have a missingness filter applied
+
+# Copy the VCFs over
+cp ../../08_Filtering/SansMaxMissing/*.vcf.gz VCFs_SansMaxMissing
+
+# Pull a list of samples we want to keep in our decompressed VCFs (House, Spanish, Tree, Corsica, Crete, Malta, Sicily)
+cat popmap.tsv | grep 'Crete\|Corsica\|Sicily\|Malta\|House\|Spanish\|Tree' | cut -f 1 > samples_to_include
+
+# Create a script (subsetVCFbySamples.sh) that will create decompressed VCFs of each of our filtered biallelic site vcf.gz files AND only include samples we want for our analysis (House, Spanish, Tree, Corsica, Crete, Malta, Sicily)
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts
+mkdir 09_DesignateAlleles_scripts
+cd 09_DesignateAlleles_scripts
+
+# submitted batch job, 46822698
+sbatch -A naiss2023-5-262 -p core -n 1 -t 23:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Inputs/ -e ../../Job_logs/09_DesignateAlleles_logs/subsetVCFbySample.err -J subsetVCFsbySample --mail-user=ar4666al-s@student.lu.se --mail-type=ALL subsetVCFbySamples.shs
+```
+Outputs: within the VCFs_SansMaxMissing directory, 41 uncompressed VCF files with the following naming conventions -> samplesubset_[chromID]_SansMaxMissing.vcf
+
+```bash
+# Pull stats on number of variant sites per chromosome
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Inputs/VCFs_SansMaxMissing # if not there already
+
+for vcf in *.vcf ; do
+
+    chromID=$(basename "${vcf}" .vcf | cut -d "_" -f 2 )
+
+    #echo ${chromID}
+
+    numberOfVariants=$(cat "${vcf}" | grep -v "#" | wc -l)
+
+    #echo ${numberOfVariants}
+
+    echo -e "${chromID}\t${numberOfVariants}" >> variantsPerChrom_sansMaxMiss.list
+
+done
+
+# Take output file to R in local computer and make graph of number of variants compared to chrom length, example usage!
+Rscript vcf_stats.R -t ../variantsPerChrom_sansMaxMiss.list -s ../sequence_report.tsv 
+```
+
+## Run the python script
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles
+
+mkdir Outputs
+cd Outputs
+
+mkdir Designations_VCFsansMaxMissing
+cd Designations_VCFsansMaxMissing
+
+# Create a temporary file that stores the paths for the vcf
+for vcf in ../../Inputs/VCFs_SansMaxMissing/*.vcf; do
+    echo ${vcf} >> subsetted_sansMaxMissing_VCF_paths
+done
+
+# Move to scripts directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts/09_DesignateAlleles_scripts
+
+# Create a bash script (designate_alleles.sh) to run the designation script (sparrows_Alamshahi.py)
+
+# Submitted batch job 47163189
+sbatch -A naiss2023-5-262 --array=1-41 --ntasks=1 -t 2-00:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing -e ../../../Job_logs/09_DesignateAlleles_logs/designateAlleles.err -J designateAlleles --mail-user=ar4666al-s@student.lu.se --mail-type=ALL designate_alleles.sh
+
+```
+Outputs: 82 files per cutoff located in the Designations_VCFsansMaxMissing directory. Files follow this naming convention - [chromID]_inclMaxMiss.designated_cutoff_[cutoffLevel]_[sansSAHA/SAHA].tsv. 410 output files total.
+
+## Create concatenated versions of the designation file based off cutoffs
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing
+
+# Make directories for tsvs with SA HA designation
+mkdir cutoff_0.80_sepByChrom_SAHA cutoff_0.85_sepByChrom_SAHA cutoff_0.90_sepByChrom_SAHA cutoff_0.95_sepByChrom_SAHA cutoff_0.99_sepByChrom_SAHA
+
+# Make directories for tsvs with just A desgination
+mkdir cutoff_0.80_sepByChrom_sansSAHA cutoff_0.85_sepByChrom_sansSAHA cutoff_0.90_sepByChrom_sansSAHA cutoff_0.95_sepByChrom_sansSAHA cutoff_0.99_sepByChrom_sansSAHA
+
+# Move each tsv cutoff file into the corresponding cutoff directory
+for tsv in *.tsv; do
+
+    if [[ "$tsv" == *_cutoff_0.80_SAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.80_sepByChrom_SAHA
+    fi
+
+    if [[ "$tsv" == *_cutoff_0.80_sansSAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.80_sepByChrom_sansSAHA
+    fi
+
+    if [[ "$tsv" == *_cutoff_0.85_SAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.85_sepByChrom_SAHA
+    fi
+
+    if [[ "$tsv" == *_cutoff_0.85_sansSAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.85_sepByChrom_sansSAHA
+    fi
+    
+    if [[ "$tsv" == *_cutoff_0.90_SAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.90_sepByChrom_SAHA
+    fi
+    
+    if [[ "$tsv" == *_cutoff_0.90_sansSAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.90_sepByChrom_sansSAHA
+    fi
+
+    if [[ "$tsv" == *_cutoff_0.95_SAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.95_sepByChrom_SAHA
+    fi
+
+    if [[ "$tsv" == *_cutoff_0.95_sansSAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.95_sepByChrom_sansSAHA
+    fi
+
+    if [[ "$tsv" == *_cutoff_0.99_SAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.99_sepByChrom_SAHA
+    fi
+
+    if [[ "$tsv" == *_cutoff_0.99_sansSAHA* ]]; 
+    then
+        mv ${tsv} cutoff_0.99_sepByChrom_sansSAHA
+    fi
+  
+done
+```
+Outputs: 10 subdirectories located in Designations_VCFsansMaxMissing. Directories are named cutoff_[cutoffLevel]_sepByChrom_[sansSAHA/SAHA] and the corresponding designation files are located in the directory. 41 designation files per directory!
+
+```bash
+# Create a concatenated version of the TSVs at each cuttoff
+for dir in cutoff_*_sepByChrom*; do
+
+    dirName=$(basename "$dir" .tsv | cut -d "_" -f 1-2,4 )
+
+    for tsv in ${dir}/*.tsv; do
+        cat ${tsv} >> "${dirName}.tsv" # Will include each of the headers from the independent designation files
+
+    done
+done 
+
+# Only keep the first header, remove all the duplicate headers throughout the file
+for comp_designation_file in *.tsv; do
+    awk '/^#/ && !header_seen {print; header_seen=1; next} !/^#/' ${comp_designation_file} > "${comp_designation_file}_temp"
+
+    # overwrite the file to reflect the temp file with just one header
+    mv ${comp_designation_file}_temp "${comp_designation_file}"
+done
+```
+Outputs: 10 .tsv files located in Designations_VCFsansMaxMissing. Files are named cutoff_[cutoffLevel]_[sansSAHA/SAHA].tsv. 
+
+```bash
+# Pull total number of site for each designation!
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing
+
+for comp_designation_file in *tsv; do
+
+    numberOfSites=$(cat "${comp_designation_file}" | grep -v "#" | wc -l)
+
+    echo ${comp_designation_file} "number of sites: " ${numberOfSites}
+
+done
+
+# stdout
+cutoff_0.80_SAHA.tsv number of sites:  493581
+cutoff_0.80_sansSAHA.tsv number of sites:  493581
+cutoff_0.85_SAHA.tsv number of sites:  394984
+cutoff_0.85_sansSAHA.tsv number of sites:  394984
+cutoff_0.90_SAHA.tsv number of sites:  250695
+cutoff_0.90_sansSAHA.tsv number of sites:  250695
+cutoff_0.95_SAHA.tsv number of sites:  170356
+cutoff_0.95_sansSAHA.tsv number of sites:  170356
+cutoff_0.99_SAHA.tsv number of sites:  137411
+cutoff_0.99_sansSAHA.tsv number of sites:  137411
+```
+
+## Move to R on local computer and create some graphs looking at these .tsv designation files
+``` bash
+# Example usage of R script that will output plots for designation files!
+
+ Rscript desFiles.R --tenRandomCorsicans yes --sansSAHA_0.80 ../newDesignationFiles/cutoff_0.80_sansSAHA.tsv --SAHA_0.80 ../newDesignationFiles/cutoff_0.80_SAHA.tsv --sansSAHA_0.85 ../newDesignationFiles/cutoff_0.85_sansSAHA.tsv --SAHA_0.85 ../newDesignationFiles/cutoff_0.85_SAHA.tsv --sansSAHA_0.90 ../newDesignationFiles/cutoff_0.90_sansSAHA.tsv --SAHA_0.90 ../newDesignationFiles/cutoff_0.90_SAHA.tsv --sansSAHA_0.95 ../newDesignationFiles/cutoff_0.95_sansSAHA.tsv --SAHA_0.95 ../newDesignationFiles/cutoff_0.95_SAHA.tsv --sansSAHA_0.99 ../newDesignationFiles/cutoff_0.99_sansSAHA.tsv --SAHA_0.99 ../newDesignationFiles/cutoff_0.99_SAHA.tsv -s ../sequence_report.tsv
+
+```
+
+# Check for intersection with bedtools
+
+## Create subsetted VCF files that only include sites found at the 0.90 and 0.99 cutoffs
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+mkdir 10_BEDTools
+cd 10_BEDTools
+mkdir VCFs_subsettedDerviedSites
+cd VCFs_subsettedDerviedSites
+
+# Request an interactive session, issues when running it as batch script (output saved to slurm.out), save time and run interactive, use print statements to monitor progress instead
+interactive -A naiss2023-5-262 -n 20 -t 2:00:00
+```
+
+```bash
+# For 0.99 cutofff
+
+# Set the directories
+designation_99_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing/cutoff_0.99_sepByChrom_SAHA"
+vcf_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Inputs/VCFs_SansMaxMissing"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/10_BEDTools/VCFs_subsettedDerviedSites"
+
+# Create a temporary directory to store a file with chrom ID and position from designation file
+mkdir temp 
+
+for des_file in "$designation_99_dir"/*.tsv; do # for each designation.tsv file
+
+  chromID_des=$(basename "$des_file" | cut -d "_" -f 1) # pull the chromosome ID from the file name
+
+  echo "Pulling chromosomes & positions from the $chromID_des designation file" # print to stdout to monitor progress
+
+  awk 'NR>1 {split($1, a, "_"); print a[1], a[2]}' "$des_file" > "temp/${chromID_des}_positions.txt" # Skip the header, pull chromID and positionID from each line and save as tab separated temp file
+
+done
+
+# Now loop through the VCFs
+for vcf_file in "$vcf_dir"/*.vcf; do
+
+  chromID_vcf=$(basename "$vcf_file" | cut -d "_" -f 2) # pull the chromosome ID from the file name
+
+  echo "Processing $chromID_vcf VCF file" # print to stdout to monitor progress
+
+  if [ -f "temp/${chromID_vcf}_positions.txt" ]; then # check that the temp file with that position exists, it should - if it doesn't the we missed step
+
+    awk 'BEGIN { while (getline < "temp/'"${chromID_vcf}"'_positions.txt") positions[$1][$2] = 1; } # reads lines from temp positions file into array
+         /^#/ { print; next } # print out the header unaltered
+         $1 in positions && $2 in positions[$1] { print }' "$vcf_file" > "$output_dir/${chromID_vcf}_subset_cutoff_0.99.vcf" # chrom ID and position from vcf exist in positions array
+
+    echo "Created a subsetted VCF file for chromID $chromID_vcf" # stdout to monitor
+
+  else
+    echo "Can't find position file for $chromID_vcf" #stdout to monitor, means we missed step in creating temp directory
+
+  fi
+
+done
+
+# Now remove the the temp directory before repeating process for 0.90 cutoff
+rm -r temp
+
+# Move the outputs to an associated directory
+mkdir cutoff_0.99_subsettedVCFs
+mv *vcf cutoff_0.99_subsettedVCFs/
+```
+
+```bash
+# For 0.90 cutoff
+
+# Set the directories
+designation_90_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing/cutoff_0.90_sepByChrom_SAHA"
+vcf_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Inputs/VCFs_SansMaxMissing"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/10_BEDTools/VCFs_subsettedDerviedSites"
+
+# Create a temporary directory to store a file with chrom ID and position from designation file
+mkdir temp 
+
+for des_file in "$designation_90_dir"/*.tsv; do # for each designation.tsv file
+
+  chromID_des=$(basename "$des_file" | cut -d "_" -f 1) # pull the chromosome ID from the file name
+
+  echo "Pulling chromosomes & positions from the $chromID_des designation file" # print to stdout to monitor progress
+
+  awk 'NR>1 {split($1, a, "_"); print a[1], a[2]}' "$des_file" > "temp/${chromID_des}_positions.txt" # Skip the header, pull chromID and positionID from each line and save as tab separated temp file
+
+done
+
+# Now loop through the VCFs
+for vcf_file in "$vcf_dir"/*.vcf; do
+
+  chromID_vcf=$(basename "$vcf_file" | cut -d "_" -f 2) # pull the chromosome ID from the file name
+
+  echo "Processing $chromID_vcf VCF file" # print to stdout to monitor progress
+
+  if [ -f "temp/${chromID_vcf}_positions.txt" ]; then # check that the temp file with that position exists, it should - if it doesn't the we missed step
+
+    awk 'BEGIN { while (getline < "temp/'"${chromID_vcf}"'_positions.txt") positions[$1][$2] = 1; } # reads lines from temp positions file into array
+         /^#/ { print; next } # print out the header unaltered
+         $1 in positions && $2 in positions[$1] { print }' "$vcf_file" > "$output_dir/${chromID_vcf}_subset_cutoff_0.90.vcf" # chrom ID and position from vcf exist in positions array
+
+    echo "Created a subsetted VCF file for chromID $chromID_vcf" # stdout to monitor
+
+  else
+    echo "Can't find position file for $chromID_vcf" #stdout to monitor, means we missed step in creating temp directory
+
+  fi
+
+done
+
+# Now remove the the temp directory before repeating process for 0.90 cutoff
+rm -r temp
+
+# Move the outputs to an associated directory
+mkdir cutoff_0.90_subsettedVCFs
+mv *vcf cutoff_0.90_subsettedVCFs/
+```
+Outputs: 2 subdirectories named cutoff_0.90_subsettedVCFs and cutoff_0.99_subsettedVCFs each housing 41 subsetted VCF files named [chromID]_subset_cutoff_[cutoff].vcf
+
+## Download the Refseq annotation file and update IDs to Genbank (our VCFs are generated with genbank IDs)
+```bash
+# Move to Data directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Data/
+mkdir Annotation
+cd Annotation
+
+# Download the genome annoation file (gff) from ncbi and copy to Annotation directory
+# Download the sequence report from https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_036417665.1/ and copy to the Annotation directory
+
+# Modify the tsv to only include the chromosome name (column 4), Genbank ID (column 7), and associated Refseq ID (column 10) 
+cat sequence_report.tsv | grep -v "Assembly Accession" | cut -f 4,7,10 > genBank_refSeq_IDs.list # exclude the header and create tab sep list
+
+# Create an updated .gff
+# declares tab sep inputs & outputs, create an array where genbank ID is associated with refseq ID (from genBank_refSeq_IDs.list)
+# Then checks if column 1 of gff exists in linked array, if yes replaces
+awk 'BEGIN{FS=OFS="\t"} NR==FNR{linked[$3]=$2; next} $1 in linked{$1=linked[$1]} 1' genBank_refSeq_IDs.list genomic.gff > genomic_genbankID.gff
+```
+Output: gff file called genomic_genbankID.gff which features genBank IDs rather than refSeq and is located in the Annotation dir
+
+## Create subsetted .gff files separeted by feature
+```bash 
+# Move back to the 10_BEDTools directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/10_BEDTools
+
+# Create and move to the gff_subsetted_byFeature directory
+mkdir gff_subsetted_byFeature
+cd gff_subsetted_byFeature
+
+# Pull the list of features in the gtf file
+cat ../../Data/Annotation/genomic_genbankID.gff | grep -v "#" | cut -f 3 | sort | uniq # cDNA_match, CDS, C_gene_segment, exon, gene, lnc_RNA, mRNA, ncRNA, pseudogene, region, rRNA, sequence_feature, snoRNA, snRNA, transcript, tRNA, V_gene_segment
+
+# Create a gtf file for each feature we want: exons and gene (intergenic region and 10,00 basepairs from gene, use gene.gff)
+awk '$3 == "exon"' ../../Data/Annotation/genomic_genbankID.gff > exon.gff # 858,118 lines, will only pull lines where "exon" is listed as feature
+awk '$3 == "gene"' ../../Data/Annotation/genomic_genbankID.gff > gene.gff # 31,174 lines
+```
+Outputs: 2 files in the gff_subsetted_byFeature directory following the format [geneFeature].[fileType(gtf/gff)]
+
+## Generate the VCF intersection files
+```bash
+# Request an interactive environment, issues with output saving into slurm file, for efficiency just do interative
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load BEDTools/2.31.1
+
+# Move back to the 10_BEDTools directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/10_BEDTools
+
+# Create directories to store the intersection files
+mkdir VCF_cutoff_0.90_intersections VCF_cutoff_0.99_intersections
+
+# Genes & exons
+for vcf_dir in VCFs_subsettedDerviedSites/cutoff_*_subsettedVCFs ; do # there are two dirs storing VCFs, 0.90 and 0.99 cutoff
+
+    for vcf in ${vcf_dir}/*vcf ; do # for the vcf files in those dirs
+
+        for feature_file in gff_subsetted_byFeature/*.g*f ; do
+
+            chromID=$(basename "$vcf" .vcf | cut -d "_" -f 1) # pull the chromosome from the vcf file name
+
+            cutoff=$(basename "$vcf" .vcf | cut -d "_" -f 4) # pull the designation cutoff from the vcf file name
+
+            featureType=$(basename "$feature_file" .g*f | cut -d "." -f 1) # pull the annotation feature type from the file name
+
+            #echo ${featureType}
+
+            bedtools intersect -header -a ${vcf} -b ${feature_file} -u > "VCF_cutoff_${cutoff}_intersections/${chromID}_cutoff_${cutoff}_${featureType}_intersection.vcf" # only pull unique overlaps (-u) and maintain the vcf header
+
+        done
+
+    done
+    
+done
+
+# Intergenic regions
+for vcf_dir in VCFs_subsettedDerviedSites/cutoff_*_subsettedVCFs ; do # there are two dirs storing VCFs, 0.90 and 0.99 cutoff
+
+    for vcf in ${vcf_dir}/*vcf ; do
+
+        chromID=$(basename "$vcf" .vcf | cut -d "_" -f 1) # pull the chromosome from the vcf file name
+
+        cutoff=$(basename "$vcf" .vcf | cut -d "_" -f 4) # pull the designation cutoff from the vcf file name
+        
+        bedtools intersect -header -a ${vcf} -b gff_subsetted_byFeature/gene.gff -v > "VCF_cutoff_${cutoff}_intersections/${chromID}_cutoff_${cutoff}_intergenic_intersection.vcf" # -v finds features that don't overlap
+
+    done
+    
+done
+
+# Genes & up to 10,000 basepairs away from gene (features like enhancers and promoters can be very vary away, but setting cutoff of 100,000 will pull WAY too much, will capture enough with 10,000 bps )
+
+for vcf_dir in VCFs_subsettedDerviedSites/cutoff_*_subsettedVCFs ; do # there are two dirs storing VCFs, 0.90 and 0.99 cutoff
+
+    for vcf in ${vcf_dir}/*vcf ; do
+
+        chromID=$(basename "$vcf" .vcf | cut -d "_" -f 1) # pull the chromosome from the vcf file name
+
+        cutoff=$(basename "$vcf" .vcf | cut -d "_" -f 4) # pull the designation cutoff from the vcf file name
+        
+        bedtools window -header -a ${vcf} -b gff_subsetted_byFeature/gene.gff -u -w 10000 > "VCF_cutoff_${cutoff}_intersections/${chromID}_cutoff_${cutoff}_geneAndNearGene_10000bpWindow_intersection.vcf" # window and -w to find genes sites and near gene sites in file
+
+    done
+    
+done
+
+```
+
+### Sort the VCF intersection files
+```bash
+# Move back to the 10_BEDTools directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/10_BEDTools
+
+# Now move the the 0.90 VCF intersection files
+cd VCF_cutoff_0.90_intersections
+
+mkdir exon_sites gene_sites intergenic_sites geneAndNearGene10000_sites
+
+for vcf in *vcf; do
+
+    vcf_basename=$(basename ${vcf} .vcf)
+
+    if [[ "$vcf_basename" == *exon* ]]; then
+      mv "$vcf" exon_sites
+
+    elif [[ "$vcf_basename" == *10000bpWindow* ]]; then
+    mv "$vcf" geneAndNearGene10000_sites
+
+    elif [[ "$vcf_basename" == *intergenic* ]]; then
+    mv "$vcf" intergenic_sites
+    
+    elif [[ "$vcf_basename" == *_gene_* ]]; then
+    mv "$vcf" gene_sites
+
+    fi
+
+done
+
+# Repeat the sorting process for files in the VCF_cutoff_0.99_intersections directory
+```
+
+### Now generate intersection file for sites near gene
+```bash
+# Now pull just nearby!
+for vcf_intersection_dir in VCF_cutoff_* ; do # there are two dirs storing VCFs, 0.90 and 0.99 cutoff
+
+    for gene_intersection_vcf in ${vcf_intersection_dir}/gene_sites/*vcf ; do
+
+        chromIDgeneIntersection=$(basename "$gene_intersection_vcf" .vcf | cut -d "_" -f 1) # Pull chrom name from the gene intersection file name
+        cutoffGeneIntersection=$(basename "$gene_intersection_vcf" .vcf | cut -d "_" -f 3) # Pull cutoff from the gene intersection file name
+
+        for gene_ANDnearby_intersection_vcf in ${vcf_intersection_dir}/geneAndNearGene10000_sites/${chromIDgeneIntersection}*${cutoffGeneIntersection}*vcf ; do # find gene&nearby file that matches chrom name and cutoff of gene file
+
+            bedtools intersect -header -a ${gene_ANDnearby_intersection_vcf} -b ${gene_intersection_vcf} -v > "VCF_cutoff_${cutoffGeneIntersection}_intersections/${chromIDgeneIntersection}_cutoff_${cutoffGeneIntersection}_nearGene_intersection.vcf" # -v flag will print out any site present in gene & nearby that aren't present in gene -> so just nearby!!
+
+
+        done
+
+    done
+    
+done
+```
+
+### Sort the near_gene intersections
+```bash
+# sort the near gene intersection files!
+# Move back to the 10_BEDTools directory if not there already
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/10_BEDTools
+
+# Now move the the 0.90 VCF intersection files
+cd VCF_cutoff_0.90_intersections
+
+# Make a directory for nearGene sites and move associated files there!
+mkdir nearGene_sites
+mv *vcf nearGene_sites/
+
+# Repeat the sorting process for files in the VCF_cutoff_0.99_intersections directory
+```
+Outputs: two directories named VCF_cutoff_[cutoff]_intersections. Within each directory are 6 subdirectories named after features called exon_sites, geneAndNearGene10000_sites, gene_sites, intergenic_sites, and nearGene_sites. Each subdirectory contains 41 VCF files named [chromID]_cutoff_[cutoff]_[feature]_intersection.vcf
+
+# GO analysis
+
+## Create tab separated list of Gene_IDs and associated GO_IDs
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+mkdir 11_GOanalysis
+cd 11_GOanalysis
+
+# Download the GCF_036417665.1-RS_2024_04_gene_ontology.gaf.gz file from https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/48849/GCF_036417665.1-RS_2024_04/
+# Unzip and move file to the 11_GOanalysis directory, file called GCF_036417665.1-RS_2024_04_gene_ontology.gaf
+
+# Use awk to parse the GAF file to get tab sep list of gene IDs and GO ids
+for gaf in GCF_036417665.1-RS_2024_04_gene_ontology.gaf; do
+
+    awk -F'\t' '
+    !/^!/ { # ignore header lines, they start with "!"
+        gene_id = $2 # gene IDs are located in column 2
+        go_id = $5 # GO IDs located in column 3, format GO:0016746
+
+        # Store GO IDs in an associative array (index by gene IDs)
+        if (gene_id in gene_go) {
+            gene_go[gene_id] = gene_go[gene_id] "," go_id # if there are multiple GO IDs associated with the same gene ID, comma sep the GO IDs (GO:0016746, GO:0016745)
+        } else {
+            gene_go[gene_id] = go_id # otherwise just keep as one GO ID associated with one Gene ID
+        }
+    }
+
+    END {
+        for (gene_id in gene_go) {
+            print gene_id "\t" gene_go[gene_id] # tab sep output, [geneID]\t[GO:ID]
+        }
+    }
+    ' "$gaf" > "geneID_goID.tsv"
+
+done
+
+# Check number of unique gene IDs in GAF
+cat GCF_036417665.1-RS_2024_04_gene_ontology.gaf | grep -v "\!" | cut -f 2 | sort | uniq | wc -l # 16024 gene IDS
+
+# Compare to number of lines present in geneID_goID.tsv
+cat geneID_goID.tsv | wc -l # 16024 gene IDS, exact match!
+```
+Output: 1 file called geneID_goID.tsv located in the 11_GOanalysis directory
+
+## Create a file of outlier genes
+### Subset the 0.99 designation files based on SD or HD site designation
+```bash
+# Subset the 0.99 (just run for 0.99 for now) designation files based on SD or HD site designation
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis
+mkdir designationFiles_sep_SD_HD
+cd designationFiles_sep_SD_HD
+
+# Request an interactive session!
+interactive -A naiss2023-5-262 -n 10 -t 1:00:00
+
+# Directory containing the files
+designation_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing/cutoff_0.99_sepByChrom_SAHA" # very long, save into environmental variable!
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/designationFiles_sep_SD_HD" # also set this to ensure output goes where we want
+
+# Iterate over each file in the input directory
+for des_file in "$designation_dir"/*.tsv; do
+
+    file_basename=$(basename ${des_file} .tsv | cut -d "_" -f 1,3-4 ) # e.g. CM071462.1_cutoff_0.99
+
+    sd_des_output="$output_dir/${file_basename}_SD.tsv" # create variables to store output file names, will be shorter to call in further down
+    hd_des_output="$output_dir/${file_basename}_HD.tsv"
+    > "$sd_des_output" # create empty files for output to append to
+    > "$hd_des_output"
+    
+    while IFS= read -r line; do # read designation file line by line
+
+        if [[ "$line" =~ ^# ]]; then # skip the header! Starts with "#"
+        continue
+        fi
+        
+        site_des_col=$(echo "$line" | cut -f 6) # pull the site designation, in column 6
+        
+        
+        if [[ "$site_des_col" == "SD" ]]; then # If site is designated SD
+        echo "$line" >> "$sd_des_output" # then write that line to SD output file
+
+        elif [[ "$site_des_col" == "HD" ]]; then # if site is designated HD
+        echo "$line" >> "$hd_des_output" # then write that line to HD output file
+        fi
+    done < "$des_file"
+
+done # took about 11 minutes
+
+# check that SD lines + HD lines = # lines in orginal file!
+```
+Output: 82 files located in the designationFiles_sep_SD_HD directory! Files are named [chromID]_cutoff_0.99_[siteDes].tsv
+
+### Generate subsetted VCF files separated by SD and HD designation (0.99 cutoff)
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis
+mkdir VCFs_subsetted_SD_HD
+
+# This uses the same baseline code as we used in previous steps!
+
+# Request interactive environment
+interactive -A naiss2023-5-262 -n 20 -t 2:00:00
+
+designation_99_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/designationFiles_sep_SD_HD"
+vcf_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Inputs/VCFs_SansMaxMissing"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/VCFs_subsetted_SD_HD"
+
+# Create a temporary directory to store a file with chrom ID and position from HD designation files
+mkdir temp 
+
+
+for des_file in "$designation_99_dir"/*_HD.tsv; do # for each HD designation.tsv file
+
+  chromID_des=$(basename "$des_file" | cut -d "_" -f 1) # pull the chromosome ID from the file name
+
+  echo "Pulling chromosomes & positions from the $chromID_des designation file" # print to stdout to monitor progress
+
+  awk '{split($1, a, "_"); print a[1], a[2]}' "$des_file" > "temp/${chromID_des}_positions.txt" # No header to skip, pull chromID and positionID from each line and save as tab separated temp file
+
+done
+
+# Now loop through the VCFs
+for vcf_file in "$vcf_dir"/*.vcf; do
+
+  chromID_vcf=$(basename "$vcf_file" | cut -d "_" -f 2) # pull the chromosome ID from the file name
+
+  echo "Processing $chromID_vcf VCF file" # print to stdout to monitor progress
+
+  if [ -f "temp/${chromID_vcf}_positions.txt" ]; then # check that the temp file with that position exists, it should - if it doesn't the we missed step
+
+    awk 'BEGIN { while (getline < "temp/'"${chromID_vcf}"'_positions.txt") positions[$1][$2] = 1; } # reads lines from temp positions file into array
+         /^#/ { print; next } # print out the header unaltered
+         $1 in positions && $2 in positions[$1] { print }' "$vcf_file" > "$output_dir/${chromID_vcf}_subset_cutoff_0.99_HD.vcf" # chrom ID and position from vcf exist in positions array
+
+    echo "Created a subsetted VCF file for chromID $chromID_vcf" # stdout to monitor
+
+  else
+    echo "Can't find position file for $chromID_vcf" #stdout to monitor, means we missed step in creating temp directory
+
+  fi
+
+done
+
+# Now remove the the temp directory before repeating process for SD designated
+rm -r temp
+
+# Sort the output
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/VCFs_subsetted_SD_HD
+mkdir VCFs_subsetted_HD
+mv *vcf VCFs_subsetted_HD/ # move all the files there
+
+# Create a temporary directory to store a file with chrom ID and position from SD designation files
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis # move back first
+mkdir temp 
+
+for des_file in "$designation_99_dir"/*_SD.tsv; do # for each HD designation.tsv file
+
+  chromID_des=$(basename "$des_file" | cut -d "_" -f 1) # pull the chromosome ID from the file name
+
+  echo "Pulling chromosomes & positions from the $chromID_des designation file" # print to stdout to monitor progress
+
+  awk '{split($1, a, "_"); print a[1], a[2]}' "$des_file" > "temp/${chromID_des}_positions.txt" # No header to skip, pull chromID and positionID from each line and save as tab separated temp file
+
+done
+
+# Now loop through the VCFs
+for vcf_file in "$vcf_dir"/*.vcf; do
+
+  chromID_vcf=$(basename "$vcf_file" | cut -d "_" -f 2) # pull the chromosome ID from the file name
+
+  echo "Processing $chromID_vcf VCF file" # print to stdout to monitor progress
+
+  if [ -f "temp/${chromID_vcf}_positions.txt" ]; then # check that the temp file with that position exists, it should - if it doesn't the we missed step
+
+    awk 'BEGIN { while (getline < "temp/'"${chromID_vcf}"'_positions.txt") positions[$1][$2] = 1; } # reads lines from temp positions file into array
+         /^#/ { print; next } # print out the header unaltered
+         $1 in positions && $2 in positions[$1] { print }' "$vcf_file" > "$output_dir/${chromID_vcf}_subset_cutoff_0.99_SD.vcf" # chrom ID and position from vcf exist in positions array
+
+    echo "Created a subsetted VCF file for chromID $chromID_vcf" # stdout to monitor
+
+  else
+    echo "Can't find position file for $chromID_vcf" #stdout to monitor, means we missed step in creating temp directory
+
+  fi
+
+done
+
+# Now remove the the temp directory 
+rm -r temp
+
+# Sort the output
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/VCFs_subsetted_SD_HD
+mkdir VCFs_subsetted_SD
+mv *vcf VCFs_subsetted_SD/ # move all the vcf files there
+
+# Compare line counts to make sure they add up!
+cat VCFs_subsetted_HD/CM071426.1_subset_cutoff_0.99_HD.vcf | grep -v "#" | wc -l # 720
+cat VCFs_subsetted_SD/CM071426.1_subset_cutoff_0.99_SD.vcf | grep -v "#" | wc -l # 1557
+cat ../../10_BEDTools/VCFs_subsettedDerviedSites/cutoff_0.99_subsettedVCFs/CM071426.1_subset_cutoff_0.99.vcf | grep -v "#" | wc -l # 2277, this is VCF subsetted by derived sites not split up by SD and HD! 720 + 1557 = 2277
+```
+Output: two subdirectories called VCFs_subsetted_HD and VCFs_subsetted_SD located in the 11_GOanalysis directory. Each subdirectory contains 41 vcf files that follow this naming convention: [chromID]_subset_cutoff_0.99_[HD/SD].vcf! Recall that these vcfs are SUBSETS, they only include sites that are also present in the associated designation (0.99 cutoff) file!
+
+### Generate exon and gene gff intersection files based on subsetted designation files (HD and SD)
+
+```bash
+# Move back to 11_GOanalysis
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis
+
+cp -r ../10_BEDTools/gff_subsetted_byFeature/ . # copy the directory with exon.gff and gene.gff file!
+
+mkdir GFF_cutoff_0.99_SD_HD_intersections # directory to store intersections
+
+# Request an interactive environment
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load BEDTools/2.31.1
+
+# Create gff intersection file for genes and exons, separated by SD and HD
+for vcf_dir in VCFs_subsetted_SD_HD/VCFs_subsetted_*D ; do # there are two dirs storing VCFs, separated by SD and HD
+
+    for vcf in ${vcf_dir}/*vcf ; do
+
+        for feature_file in gff_subsetted_byFeature/*.gff ; do
+
+            chromID=$(basename "$vcf" .vcf | cut -d "_" -f 1) # pull the chromosome from the vcf file name
+
+            siteType=$(basename "$vcf" .vcf | cut -d "_" -f 5) # pull the site type, SD or HD
+
+            featureType=$(basename "$feature_file" .g*f | cut -d "." -f 1) # pull the annotation feature type from the file name
+
+            bedtools intersect -header -a ${feature_file} -b ${vcf} -u > "GFF_cutoff_0.99_SD_HD_intersections/${chromID}_cutoff_0.99_${featureType}_${siteType}_intersection.gff" # only pull unique overlaps
+
+        done
+
+    done
+    
+done
+```
+
+```bash
+# Sort the GFF intersection files
+
+# Move to to the 11_GOanalysis directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/GFF_cutoff_0.99_SD_HD_intersections
+
+mkdir exon_sites_HD gene_sites_HD exon_sites_SD gene_sites_SD
+
+for gff in *gff; do
+
+    gff_basename=$(basename ${gff} .gff)
+
+    if [[ "$gff_basename" == *exon_HD* ]]; then
+      mv "$gff" exon_sites_HD
+
+    elif [[ "$gff_basename" == *gene_HD* ]]; then
+    mv "$gff" gene_sites_HD
+
+    elif [[ "$gff_basename" == *exon_SD* ]]; then
+    mv "$gff" exon_sites_SD
+    
+    elif [[ "$gff_basename" == *gene_SD* ]]; then
+    mv "$gff" gene_sites_SD
+
+    fi
+
+done
+```
+Output: 4 subdirectories called exon_sites_HD, exon_sites_SD, gene_sites_HD, gene_sites_SD located within the GFF_cutoff_0.99_SD_HD_intersections subdirectory. Within each [feature]_sites_[designation] subdirectory are 41 gff intersection files! They have been intersection with a VCF that contains SD or HD sites at the 0.99 cutoff and follow this naming convention: [chromID]_cutoff_0.99_[feature]_[siteDesignation]_intersection.gff
+
+### Pull the outlier genes into a file
+```bash
+# Move into this directory if not already there!
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis
+
+mkdir outlier_GeneID_files
+cd outlier_GeneID_files
+mkdir outlier_GeneID_files_SD outlier_GeneID_files_HD
+
+# set environmental variables instead of referencing absolute path each time
+subsetted_gff_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/GFF_cutoff_0.99_SD_HD_intersections"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/outlier_GeneID_files"
+
+for dir in in ${subsetted_gff_dir}/gene_sites_*D; do # two directories gene_sites_HD, gene_sites_SD
+
+    for gff in ${dir}/*.gff; do
+
+        file_name=$(basename "$gff" .gff) # pull the basename, e.g. CM071426.1_cutoff_0.99_gene_SD_intersection
+        site_des=$(basename "$dir" | cut -d "_" -f 3) # will just pull the SD or HD from end of directory name
+
+        cat ${gff} | cut -f 9 | cut -d ";" -f 2 | cut -d ":" -f 2 >> "$output_dir/outlier_GeneID_files_${site_des}/${file_name}_outlierGeneID.tsv"
+
+    done
+
+done
+```
+Outputs: two subdirectories called outlier_GeneID_files_HD and outlier_GeneID_files_SD within the outlier_GeneID_files subdirectory. Within each of the two subdirectories are 41 files following this naming convention: [chromID]_cutoff_0.99_gene_[siteDesignation]_intersection_outlierGeneID.tsv. The file is a list with gene IDs fo HD/SD sites that fall within genes at the 0.99 cutoff
+
+
+## Run using Kalle's GO_term scripts
+```bash
+# Move to scripts folder!
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts
+mkdir 11_GOanalysis_scripts
+cd 11_GOanalysis_scripts # copy Kalle's GSEA_script to here
+
+# Move back to 11_GOanalysis
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis
+mkdir final_inputs
+
+#
+```
+
+# Linkage pruning, then re-run some stats in R
+
+## Generate a list of prune.in sites!
+```bash
+# Create a new directory for pruninig VCFs and subsequent analysis
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+mkdir 12_LinkagePruning
+cd 12_LinkagePruning
+
+mkdir InputVCFs
+cd InputVCFs
+
+# Copy VCFs that have been subsetted based on designation file!
+cp -r ../../10_BEDTools/VCFs_subsettedDerviedSites/cutoff_0.9* . #cutoff_0.90_subsettedVCFs and cutoff_0.99_subsettedVCFs subdirectories!
+
+# Move back to 12_LinkagePruning!
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning
+
+mkdir VCF_subsettedByDes_pruning # create a directory to store PLINK output
+
+# Request interactive
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load plink/1.90b4.9
+
+# create environmental variables to store paths
+VCFs_subsetted="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/InputVCFs"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning"
+
+for vcf_dir in ${VCFs_subsetted}/cutoff_0.9*_subsettedVCFs ; do # there are two dirs storing VCFs, separated by 0.99 and 0.90
+
+    for vcf in ${vcf_dir}/*vcf ; do
+
+        chromID=$(basename "$vcf" .vcf | cut -d "_" -f 1) # pull the chromosome from the vcf file name
+        cutoff=$(basename "$vcf" .vcf | cut -d "_" -f 4) # pull the cutoff from the vcf file name
+
+
+        # Allow extra chromosome - we have a Z chromosome and PLINK was designed for humans
+        # Set missing var IDS - so PLINK will use chromosome ID and position as the unique ID (chromID_pos, this format will match nicely with des file)
+        # indep pairwise - 450 = window (Kb,) 10 = window step size (bp), 0.1 = r2 value, linkage level we'll accept (prune if > 0.1)
+        plink --vcf ${vcf} --allow-extra-chr --set-missing-var-ids @_# --indep-pairwise 450 10 0.1 --out "${output_dir}/${chromID}_cutoff_${cutoff}_pruned"
+
+    done
+    
+done
+
+# Sort the output files
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning
+mkdir pruned_0.99_cutoff pruned_0.90_cutoff
+
+for file in ./*; do
+
+    if [[ "$file" == *cutoff_0.99* ]]; then
+      mv "$file" pruned_0.99_cutoff # 160 files located here
+
+    elif [[ "$file" == *cutoff_0.90* ]]; then
+    mv "$file" pruned_0.90_cutoff # 162 files located here, because more empty vcf files which triggered temp file making
+
+    fi
+
+done
+
+# Create concatenated version of pruned in list for 0.90 and 0.99 cutoffs
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning
+
+cat pruned_0.90_cutoff/*prune.in > prune_in_0.90_cutoff # list of [chromID]_[positions] to keep for 0.90 cutoff, 523 sites
+cat pruned_0.99_cutoff/*prune.in > prune_in_0.99_cutoff # list of [chromID]_[positions] to keep for 0.99 cutoff, 267 sites
+```
+Outputs: pruned_0.90_cutoff pruned_0.99_cutoff directories wich store prune.in, prune.out, .log, .nosex outputs AND the prune_in_0.90_cutoff prune_in_0.99_cutoff lists which shows all the [chromID]_[positions] to keep after pruning!
+
+## Subset the designation files based on prune.in sites
+```bash
+
+# Subset the 0.99 and 0.90 designation files for prune.in sites
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning
+mkdir Pruned_designation_files
+
+# Request an interactive session!
+interactive -A naiss2023-5-262 -n 20 -t 2:00:00
+
+# Directory containing the files, 0.99 cutoff
+designation_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing" # very long, save into environmental variable!
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files" # also set this to ensure output goes where we want
+prune_in_file="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.99_cutoff"
+
+# Iterate over each file in the input directory
+for des_dir in "$designation_dir"/cutoff_0.99_sepByChrom_*; do # SAHA and sansSAHA
+
+    for des_file in "$des_dir"/*.tsv; do
+
+
+        file_basename=$(basename ${des_file} .tsv | cut -d "_" -f 1,3-5 ) # e.g. CM071462.1_cutoff_0.99_sansSAHA
+
+
+        pruned_output="${output_dir}/${file_basename}_pruned.tsv" # create variables to store output file names, will be shorter to call in further down
+        > "$pruned_output" # initiate empty files for output to append to
+        
+        while IFS= read -r line; do # read designation file line by line
+
+            if [[ "$line" =~ ^# ]]; then # If header line, starts with "#"
+            echo "$line" >> "$pruned_output" # keep the header in new output file, but don't scan header for chromID_position
+            continue
+            fi
+            
+            locus_col=$(echo "$line" | cut -f 1 | cut -d "_" -f 1-2 ) # pull the locus from column 1, then isolate [chromID]_[position]
+            
+            if grep -qFx "$locus_col" "$prune_in_file"; then # checks the [chromID]_[position] from the site des file against the list of retained sites post-pruning
+
+            echo "$line" >> "$pruned_output" # if exists, then print designation file line to the output
+
+            fi
+        done < "$des_file"
+
+    done
+
+done
+
+# Sort the output files
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files
+
+mkdir pruned_desFiles_0.99_cutoff
+mv *tsv pruned_desFiles_0.99_cutoff
+
+
+# Repeat for 0.90 ccutoff, directory containing the files - 0.90 cutoff
+# Only need to reset this!
+prune_in_file="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.90_cutoff"
+
+
+# Iterate over each file in the input directory
+for des_dir in "$designation_dir"/cutoff_0.90_sepByChrom_*; do # SAHA and sansSAHA
+
+    for des_file in "$des_dir"/*.tsv; do
+
+
+        file_basename=$(basename ${des_file} .tsv | cut -d "_" -f 1,3-5 ) # e.g. CM071462.1_cutoff_0.99_sansSAHA
+
+
+        pruned_output="${output_dir}/${file_basename}_pruned.tsv" # create variables to store output file names, will be shorter to call in further down
+        > "$pruned_output" # initiate empty files for output to append to
+        
+        while IFS= read -r line; do # read designation file line by line
+
+            if [[ "$line" =~ ^# ]]; then # If header line, starts with "#"
+            echo "$line" >> "$pruned_output" # keep the header in new output file, but don't scan header for chromID_position
+            continue
+            fi
+            
+            locus_col=$(echo "$line" | cut -f 1 | cut -d "_" -f 1-2 ) # pull the locus from column 1, then isolate [chromID]_[position]
+            
+            if grep -qFx "$locus_col" "$prune_in_file"; then # checks the [chromID]_[position] from the site des file against the list of retained sites post-pruning
+
+            echo "$line" >> "$pruned_output"  # if exists, then print designation file line to the output
+
+
+            fi
+        done < "$des_file"
+
+    done
+
+done
+
+# Sort the output files
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files
+
+mkdir pruned_desFiles_0.90_cutoff
+mv *tsv pruned_desFiles_0.90_cutoff
+```
