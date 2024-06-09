@@ -2,6 +2,7 @@
 
 # R script that that is used to visualize designation file output
 # Can be ran on 0.80, 0.85, 0.90, 0.95, & 0.99 cutoff files with or without selecting 10 randsom corsicans
+# Will plot output for all chromosomes (autosomes + Z), just autosomes, & just Z for almost all plots
 
 # Example usage:
 # Rscript desFiles.R --tenRandomCorsicans yes --sansSAHA_0.80 designationFiles/cutoff_0.80_sansSAHA.tsv \
@@ -15,7 +16,9 @@
 
 # List of packages needed
 packages <- c("optparse", # v 1.7.5, allow use of command line flags
-              "tidyverse") # v 2.0.0, data frame manipulation & plotting
+              "tidyverse", # v 2.0.0, data frame manipulation & plotting
+              "eulerr") # v 7.0.2, venn diagram
+
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -129,27 +132,61 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
     stop("Looks like you didn't specify if you want to use the ten random Corsicans! Please specify yes or no")
   }
 
+  # Function to pull just the autosomes from the designation file
+  desFile_autosomes <- function(dat) {
+    dat <- dat %>%
+      filter(!str_detect(locus, "CM071456.1")) # remove Z chroms
+    return(dat)
+  }
+  
+  # Function to pull just the Z from the designation file
+  desFile_Z <- function(dat) {
+    dat <- dat %>%
+      filter(str_detect(locus, "CM071456.1")) # keep only Z chrom
+    return(dat)
+  }
+
 # Read in the designation files
   
-  cutoff_0.80_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.80)
+  cutoff_0.80_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.80) # includes autosomes & Z
+  cutoff_0.80_sansSAHA_dat_autosomes <- desFile_autosomes(cutoff_0.80_sansSAHA_dat) # just autosomes
+  cutoff_0.80_sansSAHA_dat_Z <- desFile_Z(cutoff_0.80_sansSAHA_dat) # just Z
   
   cutoff_0.80_SAHA_dat <- read_desFile(opt$SAHA_0.80)
+  cutoff_0.80_SAHA_dat_autosomes <- desFile_autosomes(cutoff_0.80_SAHA_dat)
+  cutoff_0.80_SAHA_dat_Z <- desFile_Z(cutoff_0.80_SAHA_dat)
   
   cutoff_0.85_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.85)
+  cutoff_0.85_sansSAHA_dat_autosomes <- desFile_autosomes(cutoff_0.85_sansSAHA_dat)
+  cutoff_0.85_sansSAHA_dat_Z <- desFile_Z(cutoff_0.85_sansSAHA_dat)
   
   cutoff_0.85_SAHA_dat <- read_desFile(opt$SAHA_0.85)
+  cutoff_0.85_SAHA_dat_autosomes <- desFile_autosomes(cutoff_0.85_SAHA_dat)
+  cutoff_0.85_SAHA_dat_Z <- desFile_Z(cutoff_0.85_SAHA_dat)
   
   cutoff_0.90_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.90)
+  cutoff_0.90_sansSAHA_dat_autosomes <- desFile_autosomes(cutoff_0.90_sansSAHA_dat)
+  cutoff_0.90_sansSAHA_dat_Z <- desFile_Z(cutoff_0.90_sansSAHA_dat)
   
   cutoff_0.90_SAHA_dat <- read_desFile(opt$SAHA_0.90)
+  cutoff_0.90_SAHA_dat_autosomes <- desFile_autosomes(cutoff_0.90_SAHA_dat)
+  cutoff_0.90_SAHA_dat_Z <- desFile_Z(cutoff_0.90_SAHA_dat)
   
   cutoff_0.95_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.95)
+  cutoff_0.95_sansSAHA_dat_autosomes <- desFile_autosomes(cutoff_0.95_sansSAHA_dat)
+  cutoff_0.95_sansSAHA_dat_Z <- desFile_Z(cutoff_0.95_sansSAHA_dat)
   
   cutoff_0.95_SAHA_dat <- read_desFile(opt$SAHA_0.95)
+  cutoff_0.95_SAHA_dat_autosomes <- desFile_autosomes(cutoff_0.95_SAHA_dat)
+  cutoff_0.95_SAHA_dat_Z <- desFile_Z(cutoff_0.95_SAHA_dat)
   
   cutoff_0.99_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.99)
+  cutoff_0.99_sansSAHA_dat_autosomes <- desFile_autosomes(cutoff_0.99_sansSAHA_dat)
+  cutoff_0.99_sansSAHA_dat_Z <- desFile_Z(cutoff_0.99_sansSAHA_dat)
   
   cutoff_0.99_SAHA_dat <- read_desFile(opt$SAHA_0.99)
+  cutoff_0.99_SAHA_dat_autosomes <- desFile_autosomes(cutoff_0.99_SAHA_dat)
+  cutoff_0.99_SAHA_dat_Z <- desFile_Z(cutoff_0.99_SAHA_dat)
  
 # Genome report from NCBI, https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_036417665.1/
   refGenome_report <- read.csv(opt$seqReport_input, header = TRUE, sep = "\t")
@@ -172,24 +209,47 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the function!
   count_derivedSites_0.80 <- totalSite_SDHD_count(cutoff_0.80_SAHA_dat)
+  count_derivedSites_0.80_autosomes <- totalSite_SDHD_count(cutoff_0.80_SAHA_dat_autosomes)
+  count_derivedSites_0.80_Z <- totalSite_SDHD_count(cutoff_0.80_SAHA_dat_Z)
   
   count_derivedSites_0.85 <- totalSite_SDHD_count(cutoff_0.85_SAHA_dat)
+  count_derivedSites_0.85_autosomes <- totalSite_SDHD_count(cutoff_0.85_SAHA_dat_autosomes)
+  count_derivedSites_0.85_Z <- totalSite_SDHD_count(cutoff_0.85_SAHA_dat_Z)
   
   count_derivedSites_0.90 <- totalSite_SDHD_count(cutoff_0.90_SAHA_dat)
+  count_derivedSites_0.90_autosomes <- totalSite_SDHD_count(cutoff_0.90_SAHA_dat_autosomes)
+  count_derivedSites_0.90_Z <- totalSite_SDHD_count(cutoff_0.90_SAHA_dat_Z)
   
   count_derivedSites_0.95 <- totalSite_SDHD_count(cutoff_0.95_SAHA_dat)
+  count_derivedSites_0.95_autosomes <- totalSite_SDHD_count(cutoff_0.95_SAHA_dat_autosomes)
+  count_derivedSites_0.95_Z <- totalSite_SDHD_count(cutoff_0.95_SAHA_dat_Z)
   
   count_derivedSites_0.99 <- totalSite_SDHD_count(cutoff_0.99_SAHA_dat)
+  count_derivedSites_0.99_autosomes <- totalSite_SDHD_count(cutoff_0.99_SAHA_dat_autosomes)
+  count_derivedSites_0.99_Z <- totalSite_SDHD_count(cutoff_0.99_SAHA_dat_Z)
   
 # Create a list of all the HD/SD count dataframes to join
   count_dfs_list <- list(count_derivedSites_0.80, count_derivedSites_0.85, count_derivedSites_0.90, count_derivedSites_0.95, count_derivedSites_0.99)
+  count_dfs_list_autosomes <- list(count_derivedSites_0.80_autosomes, count_derivedSites_0.85_autosomes, count_derivedSites_0.90_autosomes, count_derivedSites_0.95_autosomes, count_derivedSites_0.99_autosomes)
+  count_dfs_list_Z <- list(count_derivedSites_0.80_Z, count_derivedSites_0.85_Z, count_derivedSites_0.90_Z, count_derivedSites_0.95_Z, count_derivedSites_0.99_Z)
+  
   
 # Initialize with the first data frame
   derivedCounts_df <- count_dfs_list[[1]] 
+  derivedCounts_df_autosomes <- count_dfs_list_autosomes[[1]]
+  derivedCounts_df_Z <- count_dfs_list_Z[[1]] 
   
 # Join the other count dataframes to the main one with a left join
   for (i in 2:length(count_dfs_list)) {
     derivedCounts_df <- left_join(derivedCounts_df, count_dfs_list[[i]], by = "Site_Designation")
+  }
+  
+  for (i in 2:length(count_dfs_list_autosomes)) {
+    derivedCounts_df_autosomes <- left_join(derivedCounts_df_autosomes, count_dfs_list_autosomes[[i]], by = "Site_Designation")
+  }
+  
+  for (i in 2:length(count_dfs_list_Z)) {
+    derivedCounts_df_Z <- left_join(derivedCounts_df_Z, count_dfs_list_Z[[i]], by = "Site_Designation")
   }
   
 # Rename the columns to match the cutoff
@@ -202,38 +262,87 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
       "0.99" ="count"
     )
   
+  derivedCounts_df_autosomes <- derivedCounts_df_autosomes %>%
+    rename(
+      "0.80" = "count.x",
+      "0.85" = "count.y",
+      "0.90" = "count.x.x",
+      "0.95" = "count.y.y",
+      "0.99" ="count"
+    )
+  
+  derivedCounts_df_Z <- derivedCounts_df_Z %>%
+    rename(
+      "0.80" = "count.x",
+      "0.85" = "count.y",
+      "0.90" = "count.x.x",
+      "0.95" = "count.y.y",
+      "0.99" ="count"
+    )
+  
 # Convert to long format
   derivedCounts_df_long <- derivedCounts_df %>%
     pivot_longer(cols = -Site_Designation, names_to = "cutoff", values_to = "count")
+  
+  derivedCounts_df_autosomes_long <- derivedCounts_df_autosomes %>%
+    pivot_longer(cols = -Site_Designation, names_to = "cutoff", values_to = "count")
+  
+  derivedCounts_df_Z_long <- derivedCounts_df_Z %>%
+    pivot_longer(cols = -Site_Designation, names_to = "cutoff", values_to = "count")
 
-# Bar Plot
+# Functions to plot
+  plot_siteDesCountsPerCutoff_bar <- function(derivedCounts_long, title) { # title should be string with ""
+    plot <- ggplot(derivedCounts_long, aes(x = cutoff, y = count, fill = Site_Designation)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(x = "Allele frequency cutoffs", y = "Number of SNP sites with a designation", fill = "Site designation") + 
+      scale_y_continuous(labels = scales::comma_format()) +
+      scale_fill_manual(values = c("HD" = "skyblue1", "SD" = "sienna2"),
+                        labels = c("HD" = "House derived/Spanish ancestral", "SD" = "Spanish derived/House ancestral")) +
+      ggtitle(title) +
+      theme_minimal() +
+      theme(legend.title = element_text(hjust = 0.5)) # center the legend title
+
+    return(plot)
+  } 
+  
+  plot_siteDesCountsPerCutoff_stacked <- function(derivedCounts_long, title) { # title should be string with ""
+    plot <- ggplot(derivedCounts_long, aes(x = cutoff, y = count, fill = Site_Designation)) +
+      geom_bar(stat = "identity", position = "stack") +
+      labs(x = "Allele frequency cutoffs", y = "Number of SNP sites with a designation", fill = "Site designation") + 
+      scale_y_continuous(labels = scales::comma_format()) +
+      scale_fill_manual(values = c("HD" = "skyblue1", "SD" = "sienna2"),
+                        labels = c("HD" = "House derived/Spanish ancestral", "SD" = "Spanish derived/House ancestral")) +
+      ggtitle(title) +
+      theme_minimal() +
+      theme(legend.title = element_text(hjust = 0.5)) # center the legend title
+    
+    return(plot)
+  } 
+  
+  # Bar Plot
   png(filename = "siteDesCountsPerCutoff_bar.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_siteDesCountsPerCutoff_bar(derivedCounts_df_long, "Site designation counts per cutoff")
+  dev.off()
   
-  ggplot(derivedCounts_df_long, aes(x = cutoff, y = count, fill = Site_Designation)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    labs(x = "Allele frequency cutoffs", y = "Number of SNP sites with a designation", fill = "Site designation") + 
-    scale_y_continuous(labels = scales::comma_format()) +
-    scale_fill_manual(values = c("HD" = "skyblue1", "SD" = "sienna2"),
-                      labels = c("HD" = "House derived/Spanish ancestral", "SD" = "Spanish derived/House ancestral")) +
-    #ggtitle("Site designation counts per cutoff") +
-    theme_minimal() +
-    theme(legend.title = element_text(hjust = 0.5)) # center the legend title
+  png(filename = "siteDesCountsPerCutoff_autosomes_bar.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_siteDesCountsPerCutoff_bar(derivedCounts_df_autosomes_long, "Site designation counts per cutoff - autosomes")
+  dev.off()
   
+  png(filename = "siteDesCountsPerCutoff_Z_bar.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_siteDesCountsPerCutoff_bar(derivedCounts_df_Z_long, "Site designation counts per cutoff - Z")
   dev.off()
   
   # Stacked bar plot
   png(filename = "siteDesCountsPerCutoff_stacked.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_siteDesCountsPerCutoff_stacked(derivedCounts_df_long, "Site designation counts per cutoff")
+  dev.off()
   
-  ggplot(derivedCounts_df_long, aes(x = cutoff, y = count, fill = Site_Designation)) +
-    geom_bar(stat = "identity", position = "stack") +
-    labs(x = "Allele frequency cutoffs", y = "Number of SNP sites with a designation", fill = "Site designation") + 
-    scale_y_continuous(labels = scales::comma_format()) +
-    scale_fill_manual(values = c("HD" = "skyblue1", "SD" = "sienna2"),
-                      labels = c("HD" = "House derived/Spanish ancestral", "SD" = "Spanish derived/House ancestral")) +
-    #ggtitle("Site designation counts per cutoff") +
-    theme_minimal() +
-    theme(legend.title = element_text(hjust = 0.5)) # center the legend title
+  png(filename = "siteDesCountsPerCutoff_autosomes_stacked.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_siteDesCountsPerCutoff_stacked(derivedCounts_df_autosomes_long, "Site designation counts per cutoff - autosomes")
+  dev.off()
   
+  png(filename = "siteDesCountsPerCutoff_Z_stacked.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_siteDesCountsPerCutoff_stacked(derivedCounts_df_Z_long, "Site designation counts per cutoff - Z")
   dev.off()
   
   # Takeaway: number of sites per decreases as cutoff increases.
@@ -256,21 +365,37 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the function for each cutoff!
   cutoff_0.99_Ital_alleleCounts <- count_Italian_alleles(cutoff_0.99_SAHA_dat)
+  cutoff_0.99_Ital_alleleCounts_autosomes <- count_Italian_alleles(cutoff_0.99_SAHA_dat_autosomes)
+  cutoff_0.99_Ital_alleleCounts_Z <- count_Italian_alleles(cutoff_0.99_SAHA_dat_Z)
   
   cutoff_0.95_Ital_alleleCounts <- count_Italian_alleles(cutoff_0.95_SAHA_dat)
+  cutoff_0.95_Ital_alleleCounts_autosomes <- count_Italian_alleles(cutoff_0.95_SAHA_dat_autosomes)
+  cutoff_0.95_Ital_alleleCounts_Z <- count_Italian_alleles(cutoff_0.95_SAHA_dat_Z)
   
   cutoff_0.90_Ital_alleleCounts <- count_Italian_alleles(cutoff_0.90_SAHA_dat)
+  cutoff_0.90_Ital_alleleCounts_autosomes <- count_Italian_alleles(cutoff_0.90_SAHA_dat_autosomes)
+  cutoff_0.90_Ital_alleleCounts_Z <- count_Italian_alleles(cutoff_0.90_SAHA_dat_Z)
   
   cutoff_0.85_Ital_alleleCounts <- count_Italian_alleles(cutoff_0.85_SAHA_dat)
+  cutoff_0.85_Ital_alleleCounts_autosomes <- count_Italian_alleles(cutoff_0.85_SAHA_dat_autosomes)
+  cutoff_0.85_Ital_alleleCounts_Z <- count_Italian_alleles(cutoff_0.85_SAHA_dat_Z)
   
   cutoff_0.80_Ital_alleleCounts <- count_Italian_alleles(cutoff_0.80_SAHA_dat)
+  cutoff_0.80_Ital_alleleCounts_autosomes <- count_Italian_alleles(cutoff_0.80_SAHA_dat_autosomes)
+  cutoff_0.80_Ital_alleleCounts_Z <- count_Italian_alleles(cutoff_0.80_SAHA_dat_Z)
   
 # Create a dataframe that will store total HD, SD, A counts for each cutoff
   countTotals_It_perCutoff <- data.frame() # empty dataframe
+  countTotals_It_perCutoff_autosomes <- data.frame() # empty dataframe
+  countTotals_It_perCutoff_Z <- data.frame() # empty dataframe
   
 # List of dataframes to iterate over
   Ital_alleleCounts_dfs <- list(cutoff_0.99_Ital_alleleCounts, cutoff_0.95_Ital_alleleCounts, cutoff_0.90_Ital_alleleCounts, 
                                cutoff_0.85_Ital_alleleCounts, cutoff_0.80_Ital_alleleCounts)
+  Ital_alleleCounts_dfs_autosomes <- list(cutoff_0.99_Ital_alleleCounts_autosomes, cutoff_0.95_Ital_alleleCounts_autosomes, cutoff_0.90_Ital_alleleCounts_autosomes, 
+                                cutoff_0.85_Ital_alleleCounts_autosomes, cutoff_0.80_Ital_alleleCounts_autosomes)
+  Ital_alleleCounts_dfs_Z <- list(cutoff_0.99_Ital_alleleCounts_Z, cutoff_0.95_Ital_alleleCounts_Z, cutoff_0.90_Ital_alleleCounts_Z, 
+                                cutoff_0.85_Ital_alleleCounts_Z, cutoff_0.80_Ital_alleleCounts_Z)
   
 # Loop through the list of dataframes
   for (df in Ital_alleleCounts_dfs) {
@@ -285,8 +410,35 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
     countTotals_It_perCutoff <- bind_rows(countTotals_It_perCutoff, totals)
   }
   
+  for (df in Ital_alleleCounts_dfs_autosomes) {
+    totals <- df %>% # use the dfs we created as a base to calc totals
+      summarize(HD_total = sum(HD_count), # calc the sum of each allele designation type
+                SD_total = sum(SD_count),
+                A_total = sum(A_count),
+                HA_total = sum(HA_count),
+                SA_total = sum(SA_count))
+    
+    # Add totals to countTotals_perCutoff
+    countTotals_It_perCutoff_autosomes <- bind_rows(countTotals_It_perCutoff_autosomes, totals)
+  }
+  
+  for (df in Ital_alleleCounts_dfs_Z) {
+    totals <- df %>% # use the dfs we created as a base to calc totals
+      summarize(HD_total = sum(HD_count), # calc the sum of each allele designation type
+                SD_total = sum(SD_count),
+                A_total = sum(A_count),
+                HA_total = sum(HA_count),
+                SA_total = sum(SA_count))
+    
+    # Add totals to countTotals_perCutoff
+    countTotals_It_perCutoff_Z <- bind_rows(countTotals_It_perCutoff_Z, totals)
+  }
+  
 # Append a column with cutoff values
   countTotals_It_perCutoff <- cbind(cutoff = c(0.99, 0.95, 0.90, 0.85, 0.80), countTotals_It_perCutoff)
+  countTotals_It_perCutoff_autosomes <- cbind(cutoff = c(0.99, 0.95, 0.90, 0.85, 0.80), countTotals_It_perCutoff_autosomes)
+  countTotals_It_perCutoff_Z <- cbind(cutoff = c(0.99, 0.95, 0.90, 0.85, 0.80), countTotals_It_perCutoff_Z)
+  
   
 # One version of the dataframe with just ancestral, another specifying spanish ancestral and house ancestral
   countTotals_It_perCutoff_SAHA <- countTotals_It_perCutoff %>%
@@ -295,41 +447,87 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   countTotals_It_perCutoff_sansSAHA <- countTotals_It_perCutoff %>%
     select(-HA_total, -SA_total)
   
+  
+  countTotals_It_perCutoff_SAHA_autosomes <- countTotals_It_perCutoff_autosomes %>%
+    select(-A_total)
+  
+  countTotals_It_perCutoff_sansSAHA_autosomes <- countTotals_It_perCutoff_autosomes %>%
+    select(-HA_total, -SA_total)
+  
+  
+  countTotals_It_perCutoff_SAHA_Z <- countTotals_It_perCutoff_Z %>%
+    select(-A_total)
+  
+  countTotals_It_perCutoff_sansSAHA_Z <- countTotals_It_perCutoff_Z %>%
+    select(-HA_total, -SA_total)
+  
 # Long format!
   countTotals_It_perCutoff_SAHA_long <- pivot_longer(countTotals_It_perCutoff_SAHA, cols = -c(cutoff), names_to = "Total_type", values_to = "Total_count")
-  
   countTotals_It_perCutoff_sansSAHA_long <- pivot_longer(countTotals_It_perCutoff_sansSAHA, cols = -c(cutoff), names_to = "Total_type", values_to = "Total_count")
+  
+  countTotals_It_perCutoff_SAHA_autosomes_long <- pivot_longer(countTotals_It_perCutoff_SAHA_autosomes, cols = -c(cutoff), names_to = "Total_type", values_to = "Total_count")
+  countTotals_It_perCutoff_sansSAHA_autosomes_long <- pivot_longer(countTotals_It_perCutoff_sansSAHA_autosomes, cols = -c(cutoff), names_to = "Total_type", values_to = "Total_count")
+  
+  countTotals_It_perCutoff_SAHA_Z_long <- pivot_longer(countTotals_It_perCutoff_SAHA_Z, cols = -c(cutoff), names_to = "Total_type", values_to = "Total_count")
+  countTotals_It_perCutoff_sansSAHA_Z_long <- pivot_longer(countTotals_It_perCutoff_sansSAHA_Z, cols = -c(cutoff), names_to = "Total_type", values_to = "Total_count")
 
-# Plot sansSAHA
-  png(filename = "italianAlleleDesPerCutoff_SAHA.png", width = opt$width, height = opt$height, res = opt$res)
+  # Create plot functions
+  plot_italianAlleleDesPerCutoff_sansSAHA <- function(countTotals_It_perCutoff_sansSAHA_long_df, title) { # title should be string with ""
+    plot <-  ggplot(countTotals_It_perCutoff_sansSAHA_long_df, aes(x = as.factor(cutoff), y = Total_count, fill = Total_type)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(x = "Allele frequency cutoffs", y = "Total number of Italian alleles", fill = "Italian allele designation") +
+      scale_y_continuous(labels = scales::comma_format()) +
+      scale_fill_manual(values = c("HD_total" = "royalblue", "SD_total" = "orangered3", "A_total" = "orchid"),
+                        labels = c("HD_total" = "House derived", "SD_total" = "Spanish derived", "A_total" = "Ancestral")) +
+      scale_x_discrete(labels = c("0.8" = "0.80", "0.9" = "0.90")) + # rename these cutoffs to have two decimal places
+      ggtitle(title) +
+      theme_minimal()
+    
+    return(plot)
+  } 
   
-  ggplot(countTotals_It_perCutoff_sansSAHA_long, aes(x = as.factor(cutoff), y = Total_count, fill = Total_type)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    labs(x = "Allele frequency cutoffs", y = "Total number of Italian alleles", fill = "Italian allele designation") +
-    scale_y_continuous(labels = scales::comma_format()) +
-    scale_fill_manual(values = c("HD_total" = "royalblue", "SD_total" = "orangered3", "A_total" = "orchid"),
-                      labels = c("HD_total" = "House derived", "SD_total" = "Spanish derived", "A_total" = "Ancestral")) +
-    scale_x_discrete(labels = c("0.8" = "0.80", "0.9" = "0.90")) + # rename these cutoffs to have two decimal places
-    #ggtitle("Total allele counts in Italians per cutoff") +
-    theme_minimal()
+  plot_italianAlleleDesPerCutoff_SAHA <- function(countTotals_It_perCutoff_SAHA_long_df, title) { # title should be string with ""
+    plot <-  ggplot(countTotals_It_perCutoff_SAHA_long_df, aes(x = as.factor(cutoff), y = Total_count, fill = Total_type)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(x = "Allele frequency cutoffs", y = "Total number of Italian alleles", fill = "Italian allele designation") +
+      scale_y_continuous(labels = scales::comma_format()) +
+      scale_fill_manual(values = c("HD_total" = "royalblue", "SD_total" = "orangered3", "HA_total" = "#5c2be2", "SA_total" = "magenta2"),
+                        labels = c("HD_total" = "House derived", "SD_total" = "Spanish derived", "HA_total" = "House ancestral", "SA_total" = "Spanish ancestral")) +
+      scale_x_discrete(labels = c("0.8" = "0.80", "0.9" = "0.90")) + # rename these cutoffs to have two decimal places
+      ggtitle(title) +
+      theme_minimal()
+    
+    return(plot)
+  } 
   
+  # Plot sansSAHA
+  png(filename = "italianAlleleDesPerCutoff_sansSAHA.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italianAlleleDesPerCutoff_sansSAHA(countTotals_It_perCutoff_sansSAHA_long, "Total allele counts in Italians per cutoff" )
+  dev.off()
+  
+  png(filename = "italianAlleleDesPerCutoff_sansSAHA_autosomes.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italianAlleleDesPerCutoff_sansSAHA(countTotals_It_perCutoff_sansSAHA_autosomes_long, "Total allele counts in Italians per cutoff - autosomes" )
+  dev.off()
+  
+  png(filename = "italianAlleleDesPerCutoff_sansSAHA_Z.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italianAlleleDesPerCutoff_sansSAHA(countTotals_It_perCutoff_sansSAHA_Z_long, "Total allele counts in Italians per cutoff - Z" )
   dev.off()
   
   
 # Plot SAHA
-  png(filename = "italianAlleleDesPerCutoff_sansSAHA.png", width = opt$width, height = opt$height, res = opt$res)
-  
-  ggplot(countTotals_It_perCutoff_SAHA_long, aes(x = as.factor(cutoff), y = Total_count, fill = Total_type)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    labs(x = "Allele frequency cutoffs", y = "Total number of Italian alleles", fill = "Italian allele designation") +
-    scale_y_continuous(labels = scales::comma_format()) +
-    scale_fill_manual(values = c("HD_total" = "royalblue", "SD_total" = "orangered3", "HA_total" = "#5c2be2", "SA_total" = "magenta2"),
-                      labels = c("HD_total" = "House derived", "SD_total" = "Spanish derived", "HA_total" = "House ancestral", "SA_total" = "Spanish ancestral")) +
-    scale_x_discrete(labels = c("0.8" = "0.80", "0.9" = "0.90")) + # rename these cutoffs to have two decimal places
-    #ggtitle("Total allele counts in Italians per cutoff") +
-    theme_minimal()
-  
+  png(filename = "italianAlleleDesPerCutoff_SAHA.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italianAlleleDesPerCutoff_SAHA(countTotals_It_perCutoff_SAHA_long, "Total allele counts in Italians per cutoff")
   dev.off()
+  
+  png(filename = "italianAlleleDesPerCutoff_SAHA_autosomes.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italianAlleleDesPerCutoff_SAHA(countTotals_It_perCutoff_SAHA_autosomes_long, "Total allele counts in Italians per cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "italianAlleleDesPerCutoff_SAHA_Z.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italianAlleleDesPerCutoff_SAHA(countTotals_It_perCutoff_SAHA_Z_long, "Total allele counts in Italians per cutoff - Z")
+  dev.off()
+
+
   
   # Takeaways: use 0.99 as hard cutoff and 0.90 as soft cutoff. 
   # Really not much of a difference between 0.95 and 0.99
@@ -352,14 +550,24 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
   # Run the function for each cutoff!
   cutoff_0.80_Ital_alleleCounts_justSH = justSH_countItalian(cutoff_0.80_Ital_alleleCounts, "0.80")
+  cutoff_0.80_Ital_alleleCounts_justSH_autosomes = justSH_countItalian(cutoff_0.80_Ital_alleleCounts_autosomes, "0.80")
+  cutoff_0.80_Ital_alleleCounts_justSH_Z = justSH_countItalian(cutoff_0.80_Ital_alleleCounts_Z, "0.80")
   
   cutoff_0.85_Ital_alleleCounts_justSH = justSH_countItalian(cutoff_0.85_Ital_alleleCounts, "0.85")
+  cutoff_0.85_Ital_alleleCounts_justSH_autosomes = justSH_countItalian(cutoff_0.85_Ital_alleleCounts_autosomes, "0.85")
+  cutoff_0.85_Ital_alleleCounts_justSH_Z = justSH_countItalian(cutoff_0.85_Ital_alleleCounts_Z, "0.85")
   
   cutoff_0.90_Ital_alleleCounts_justSH = justSH_countItalian(cutoff_0.90_Ital_alleleCounts, "0.90")
+  cutoff_0.90_Ital_alleleCounts_justSH_autosomes = justSH_countItalian(cutoff_0.90_Ital_alleleCounts_autosomes, "0.90")
+  cutoff_0.90_Ital_alleleCounts_justSH_Z = justSH_countItalian(cutoff_0.90_Ital_alleleCounts_Z, "0.90")
   
   cutoff_0.95_Ital_alleleCounts_justSH = justSH_countItalian(cutoff_0.95_Ital_alleleCounts, "0.95")
+  cutoff_0.95_Ital_alleleCounts_justSH_autosomes = justSH_countItalian(cutoff_0.95_Ital_alleleCounts_autosomes, "0.95")
+  cutoff_0.95_Ital_alleleCounts_justSH_Z = justSH_countItalian(cutoff_0.95_Ital_alleleCounts_Z, "0.95")
   
   cutoff_0.99_Ital_alleleCounts_justSH = justSH_countItalian(cutoff_0.99_Ital_alleleCounts, "0.99")
+  cutoff_0.99_Ital_alleleCounts_justSH_autosomes = justSH_countItalian(cutoff_0.99_Ital_alleleCounts_autosomes, "0.99")
+  cutoff_0.99_Ital_alleleCounts_justSH_Z = justSH_countItalian(cutoff_0.99_Ital_alleleCounts_Z, "0.99")
   
   # Create a function that converts each of the above dataframes to long format
   justSH_countItalian_long <- function(justSH_countItalian_df) {
@@ -369,36 +577,76 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   }
   
   # Run the function for each cutoff!
-  cutoff_0.80_Ital_alleleCounts_justSH_long = justSH_countItalian_long(cutoff_0.80_Ital_alleleCounts_justSH)
+  cutoff_0.80_Ital_alleleCounts_justSH_long <- justSH_countItalian_long(cutoff_0.80_Ital_alleleCounts_justSH)
+  cutoff_0.80_Ital_alleleCounts_justSH_autosomes_long <- justSH_countItalian_long(cutoff_0.80_Ital_alleleCounts_justSH_autosomes)
+  cutoff_0.80_Ital_alleleCounts_justSH_Z_long <- justSH_countItalian_long(cutoff_0.80_Ital_alleleCounts_justSH_Z)
   
-  cutoff_0.85_Ital_alleleCounts_justSH_long = justSH_countItalian_long(cutoff_0.85_Ital_alleleCounts_justSH)
   
-  cutoff_0.90_Ital_alleleCounts_justSH_long = justSH_countItalian_long(cutoff_0.90_Ital_alleleCounts_justSH)
+  cutoff_0.85_Ital_alleleCounts_justSH_long <- justSH_countItalian_long(cutoff_0.85_Ital_alleleCounts_justSH)
+  cutoff_0.85_Ital_alleleCounts_justSH_autosomes_long <- justSH_countItalian_long(cutoff_0.85_Ital_alleleCounts_justSH_autosomes)
+  cutoff_0.85_Ital_alleleCounts_justSH_Z_long <- justSH_countItalian_long(cutoff_0.85_Ital_alleleCounts_justSH_Z)
   
-  cutoff_0.95_Ital_alleleCounts_justSH_long = justSH_countItalian_long(cutoff_0.95_Ital_alleleCounts_justSH)
   
-  cutoff_0.99_Ital_alleleCounts_justSH_long = justSH_countItalian_long(cutoff_0.99_Ital_alleleCounts_justSH)
+  cutoff_0.90_Ital_alleleCounts_justSH_long <- justSH_countItalian_long(cutoff_0.90_Ital_alleleCounts_justSH)
+  cutoff_0.90_Ital_alleleCounts_justSH_autosomes_long <- justSH_countItalian_long(cutoff_0.90_Ital_alleleCounts_justSH_autosomes)
+  cutoff_0.90_Ital_alleleCounts_justSH_Z_long <- justSH_countItalian_long(cutoff_0.90_Ital_alleleCounts_justSH_Z)
+  
+  
+  cutoff_0.95_Ital_alleleCounts_justSH_long <- justSH_countItalian_long(cutoff_0.95_Ital_alleleCounts_justSH)
+  cutoff_0.95_Ital_alleleCounts_justSH_autosomes_long <- justSH_countItalian_long(cutoff_0.95_Ital_alleleCounts_justSH_autosomes)
+  cutoff_0.95_Ital_alleleCounts_justSH_Z_long <- justSH_countItalian_long(cutoff_0.95_Ital_alleleCounts_justSH_Z)
+  
+  
+  cutoff_0.99_Ital_alleleCounts_justSH_long <- justSH_countItalian_long(cutoff_0.99_Ital_alleleCounts_justSH)
+  cutoff_0.99_Ital_alleleCounts_justSH_autosomes_long <- justSH_countItalian_long(cutoff_0.99_Ital_alleleCounts_justSH_autosomes)
+  cutoff_0.99_Ital_alleleCounts_justSH_Z_long <- justSH_countItalian_long(cutoff_0.99_Ital_alleleCounts_justSH_Z)
+  
   
   # Combine into one df!
-  Ital_alleleCounts_justSH_long = bind_rows(cutoff_0.80_Ital_alleleCounts_justSH_long, 
+  Ital_alleleCounts_justSH_long <- bind_rows(cutoff_0.80_Ital_alleleCounts_justSH_long, 
                                             cutoff_0.85_Ital_alleleCounts_justSH_long, 
                                             cutoff_0.90_Ital_alleleCounts_justSH_long, 
                                             cutoff_0.95_Ital_alleleCounts_justSH_long, 
                                             cutoff_0.99_Ital_alleleCounts_justSH_long)
   
+  Ital_alleleCounts_justSH_autosomes_long <- bind_rows(cutoff_0.80_Ital_alleleCounts_justSH_autosomes_long, 
+                                            cutoff_0.85_Ital_alleleCounts_justSH_autosomes_long, 
+                                            cutoff_0.90_Ital_alleleCounts_justSH_autosomes_long, 
+                                            cutoff_0.95_Ital_alleleCounts_justSH_autosomes_long, 
+                                            cutoff_0.99_Ital_alleleCounts_justSH_autosomes_long)
+  
+  Ital_alleleCounts_justSH_Z_long <- bind_rows(cutoff_0.80_Ital_alleleCounts_justSH_Z_long, 
+                                            cutoff_0.85_Ital_alleleCounts_justSH_Z_long, 
+                                            cutoff_0.90_Ital_alleleCounts_justSH_Z_long, 
+                                            cutoff_0.95_Ital_alleleCounts_justSH_Z_long, 
+                                            cutoff_0.99_Ital_alleleCounts_justSH_Z_long)
+  
+  # Plot function
+  plot_italAlleleParentCountPerCutoff <- function(Ital_alleleCounts_justSH_long_df, title) { # title should be string with ""
+    plot <- ggplot(Ital_alleleCounts_justSH_long_df, aes(x = as.factor(cutoff), y = count, fill = parent_count)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(x = "Allele frequency cutoffs", y = "Total number of Italian alleles", fill = "Italian allele parentage") +
+      scale_y_continuous(labels = scales::comma_format()) +
+      scale_fill_manual(values = c("H_count" = "#FF7B65", "S_count" = "#9BD184"),
+                        labels = c("H_count" = "House", "S_count" = "Spanish")) +
+      scale_x_discrete(labels = c("0.8" = "0.80", "0.9" = "0.90")) + # rename these cutoffs to have two decimal places
+      ggtitle(title) +
+      theme_minimal()
+    
+    return(plot)
+  } 
+  
   # Plot
   png(filename = "italAlleleParentCountPerCutoff.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italAlleleParentCountPerCutoff(Ital_alleleCounts_justSH_long, "Italian allele parentage counts per cutoff")
+  dev.off()
   
-  ggplot(Ital_alleleCounts_justSH_long, aes(x = as.factor(cutoff), y = count, fill = parent_count)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    labs(x = "Allele frequency cutoffs", y = "Total number of Italian alleles", fill = "Italian allele parentage") +
-    scale_y_continuous(labels = scales::comma_format()) +
-    scale_fill_manual(values = c("H_count" = "#FF7B65", "S_count" = "#9BD184"),
-                      labels = c("H_count" = "House", "S_count" = "Spanish")) +
-    scale_x_discrete(labels = c("0.8" = "0.80", "0.9" = "0.90")) + # rename these cutoffs to have two decimal places
-    #ggtitle("Total allele counts in Italians per cutoff") +
-    theme_minimal()
+  png(filename = "italAlleleParentCountPerCutoff_autosomes.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italAlleleParentCountPerCutoff(Ital_alleleCounts_justSH_autosomes_long, 'Italian allele parentage counts per cutoff - autosomes')
+  dev.off()
   
+  png(filename = "italAlleleParentCountPerCutoff_Z.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_italAlleleParentCountPerCutoff(Ital_alleleCounts_justSH_Z_long, 'Italian allele parentage counts per cutoff - Z')
   dev.off()
   
   #Takeaways: overall, more house alleles present
@@ -424,8 +672,12 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the function for strict (0.99) and loose (0.90) cutoff
   cutoff_0.99_ItalPrefix_alleleCounts <- ital_prefix_allele_counts(cutoff_0.99_Ital_alleleCounts)
+  cutoff_0.99_ItalPrefix_alleleCounts_autosomes <- ital_prefix_allele_counts(cutoff_0.99_Ital_alleleCounts_autosomes)
+  cutoff_0.99_ItalPrefix_alleleCounts_Z <- ital_prefix_allele_counts(cutoff_0.99_Ital_alleleCounts_Z)
   
   cutoff_0.90_ItalPrefix_alleleCounts <- ital_prefix_allele_counts(cutoff_0.90_Ital_alleleCounts)
+  cutoff_0.90_ItalPrefix_alleleCounts_autosomes <- ital_prefix_allele_counts(cutoff_0.90_Ital_alleleCounts_autosomes)
+  cutoff_0.90_ItalPrefix_alleleCounts_Z <- ital_prefix_allele_counts(cutoff_0.90_Ital_alleleCounts_Z)
   
 # Create two functions, one to pull just ancestral in df and another one to specify SA and HA in df
   ital_prefix_allele_counts_SAHA <- function(ItalPrefix_alleleCounts_df) {
@@ -442,10 +694,20 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the functions!
   cutoff_0.99_ItalPrefix_alleleCounts_SAHA <- ital_prefix_allele_counts_SAHA(cutoff_0.99_ItalPrefix_alleleCounts)
-  cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA <- ital_prefix_allele_counts_sansSAHA(cutoff_0.99_ItalPrefix_alleleCounts)
+  cutoff_0.99_ItalPrefix_alleleCounts_SAHA_autosomes <- ital_prefix_allele_counts_SAHA(cutoff_0.99_ItalPrefix_alleleCounts_autosomes)
+  cutoff_0.99_ItalPrefix_alleleCounts_SAHA_Z <- ital_prefix_allele_counts_SAHA(cutoff_0.99_ItalPrefix_alleleCounts_Z)
   
-  cutoff_0.90_ItalPrefix_alleleCounts_SAHA <- ital_prefix_allele_counts_SAHA(cutoff_0.90_ItalPrefix_alleleCounts) 
+  cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA <- ital_prefix_allele_counts_sansSAHA(cutoff_0.99_ItalPrefix_alleleCounts)
+  cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_autosomes <- ital_prefix_allele_counts_sansSAHA(cutoff_0.99_ItalPrefix_alleleCounts_autosomes)
+  cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_Z <- ital_prefix_allele_counts_sansSAHA(cutoff_0.99_ItalPrefix_alleleCounts_Z)
+  
+  cutoff_0.90_ItalPrefix_alleleCounts_SAHA <- ital_prefix_allele_counts_SAHA(cutoff_0.90_ItalPrefix_alleleCounts)
+  cutoff_0.90_ItalPrefix_alleleCounts_SAHA_autosomes <- ital_prefix_allele_counts_SAHA(cutoff_0.90_ItalPrefix_alleleCounts_autosomes) 
+  cutoff_0.90_ItalPrefix_alleleCounts_SAHA_Z <- ital_prefix_allele_counts_SAHA(cutoff_0.90_ItalPrefix_alleleCounts_Z) 
+  
   cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA <- ital_prefix_allele_counts_sansSAHA(cutoff_0.90_ItalPrefix_alleleCounts)
+  cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_autosomes <- ital_prefix_allele_counts_sansSAHA(cutoff_0.90_ItalPrefix_alleleCounts_autosomes)
+  cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_Z <- ital_prefix_allele_counts_sansSAHA(cutoff_0.90_ItalPrefix_alleleCounts_Z)
 
 # Create a function to turn each of the four dataframes into long format!
   ItalPrefix_alleleCounts_long <- function(ItalPrefix_alleleCounts_SAHA_orSansSAHA_df) {
@@ -456,10 +718,21 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the function
   cutoff_0.99_ItalPrefix_alleleCounts_SAHA_long <- ItalPrefix_alleleCounts_long(cutoff_0.99_ItalPrefix_alleleCounts_SAHA)
+  cutoff_0.99_ItalPrefix_alleleCounts_SAHA_autosomes_long <- ItalPrefix_alleleCounts_long(cutoff_0.99_ItalPrefix_alleleCounts_SAHA_autosomes)
+  cutoff_0.99_ItalPrefix_alleleCounts_SAHA_Z_long <- ItalPrefix_alleleCounts_long(cutoff_0.99_ItalPrefix_alleleCounts_SAHA_Z)
+  
   cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_long <- ItalPrefix_alleleCounts_long(cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA)
+  cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_autosomes_long <- ItalPrefix_alleleCounts_long(cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_autosomes)
+  cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_Z_long <- ItalPrefix_alleleCounts_long(cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_Z)
   
   cutoff_0.90_ItalPrefix_alleleCounts_SAHA_long <- ItalPrefix_alleleCounts_long(cutoff_0.90_ItalPrefix_alleleCounts_SAHA)
+  cutoff_0.90_ItalPrefix_alleleCounts_SAHA_autosomes_long <- ItalPrefix_alleleCounts_long(cutoff_0.90_ItalPrefix_alleleCounts_SAHA_autosomes)
+  cutoff_0.90_ItalPrefix_alleleCounts_SAHA_Z_long <- ItalPrefix_alleleCounts_long(cutoff_0.90_ItalPrefix_alleleCounts_SAHA_Z)
+  
   cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_long <- ItalPrefix_alleleCounts_long(cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA)
+  cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_autosomes_long <- ItalPrefix_alleleCounts_long(cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_autosomes)
+  cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_Z_long <- ItalPrefix_alleleCounts_long(cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_Z)
+  
   
 # Create two functions to make a stacked bar plot (one for sansSAHA, one for SAHA) 
   plot_ItalPrefix_alleleCounts_sansSAHA <- function(ItalPrefix_alleleCounts_sansSAHA_long, title) { # title should be string with ""
@@ -494,16 +767,54 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   plot_ItalPrefix_alleleCounts_sansSAHA(cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_long, title = "Total allele counts per Italian population at 0.90 cutoff")
   dev.off()
   
+  png(filename = "italAlleleDesPerPop_0.90_sansSAHA_autosomes.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_sansSAHA(cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_autosomes_long, title = "Total allele counts per Italian population at 0.90 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "italAlleleDesPerPop_0.90_sansSAHA_Z.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_sansSAHA(cutoff_0.90_ItalPrefix_alleleCounts_sansSAHA_Z_long, title = "Total allele counts per Italian population at 0.90 cutoff - Z")
+  dev.off()
+  
+  
+  
   png(filename = "italAlleleDesPerPop_0.99_sansSAHA.png", width = opt$width, height = opt$height, res = opt$res)
   plot_ItalPrefix_alleleCounts_sansSAHA(cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_long, title = "Total allele counts per Italian population at 0.99 cutoff")
   dev.off()
+  
+  png(filename = "italAlleleDesPerPop_0.99_sansSAHA_autosomes.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_sansSAHA(cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_autosomes_long, title = "Total allele counts per Italian population at 0.99 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "italAlleleDesPerPop_0.99_sansSAHA_Z.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_sansSAHA(cutoff_0.99_ItalPrefix_alleleCounts_sansSAHA_Z_long, title = "Total allele counts per Italian population at 0.99 cutoff - Z")
+  dev.off()
+  
+  
   
   png(filename = "italAlleleDesPerPop_0.90_SAHA.png", width = opt$width, height = opt$height, res = opt$res)
   plot_ItalPrefix_alleleCounts_SAHA(cutoff_0.90_ItalPrefix_alleleCounts_SAHA_long, title = "Total allele counts per Italian population at 0.90 cutoff")
   dev.off()
   
+  png(filename = "italAlleleDesPerPop_0.90_SAHA_autosomes.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_SAHA(cutoff_0.90_ItalPrefix_alleleCounts_SAHA_autosomes_long, title = "Total allele counts per Italian population at 0.90 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "italAlleleDesPerPop_0.90_SAHA_Z.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_SAHA(cutoff_0.90_ItalPrefix_alleleCounts_SAHA_Z_long, title = "Total allele counts per Italian population at 0.90 cutoff - Z")
+  dev.off()
+  
+  
+  
   png(filename = "italAlleleDesPerPop_0.99_SAHA.png", width = opt$width, height = opt$height, res = opt$res)
   plot_ItalPrefix_alleleCounts_SAHA(cutoff_0.99_ItalPrefix_alleleCounts_SAHA_long, title = "Total allele counts per Italian population at 0.99 cutoff")
+  dev.off()
+  
+  png(filename = "italAlleleDesPerPop_0.99_SAHA_autosomes.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_SAHA(cutoff_0.99_ItalPrefix_alleleCounts_SAHA_autosomes_long, title = "Total allele counts per Italian population at 0.99 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "italAlleleDesPerPop_0.99_SAHA_Z.png", width = opt$width, height = opt$height, res = opt$res)
+  plot_ItalPrefix_alleleCounts_SAHA(cutoff_0.99_ItalPrefix_alleleCounts_SAHA_Z_long, title = "Total allele counts per Italian population at 0.99 cutoff - Z")
   dev.off()
   
   # Takeways: Majority of Italian alleles are Ancestral and of those ancestral, most are house
@@ -529,11 +840,21 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   }
   
 # Run the function for 0.90/0.99 cutoffs SAHA/sansSAHA
-  cutoff_0.90_Ital_genotypes_SAHA = italGenotypes(cutoff_0.90_SAHA_dat)
-  cutoff_0.90_Ital_genotypes_sansSAHA = italGenotypes(cutoff_0.90_sansSAHA_dat)
+  cutoff_0.90_Ital_genotypes_SAHA <- italGenotypes(cutoff_0.90_SAHA_dat)
+  cutoff_0.90_Ital_genotypes_SAHA_autosomes <- italGenotypes(cutoff_0.90_SAHA_dat_autosomes)
+  cutoff_0.90_Ital_genotypes_SAHA_Z <- italGenotypes(cutoff_0.90_SAHA_dat_Z)
   
-  cutoff_0.99_Ital_genotypes_SAHA = italGenotypes(cutoff_0.99_SAHA_dat)
-  cutoff_0.99_Ital_genotypes_sansSAHA = italGenotypes(cutoff_0.99_sansSAHA_dat)
+  cutoff_0.90_Ital_genotypes_sansSAHA <- italGenotypes(cutoff_0.90_sansSAHA_dat)
+  cutoff_0.90_Ital_genotypes_sansSAHA_autosomes <- italGenotypes(cutoff_0.90_sansSAHA_dat_autosomes)
+  cutoff_0.90_Ital_genotypes_sansSAHA_Z <- italGenotypes(cutoff_0.90_sansSAHA_dat_Z)
+  
+  cutoff_0.99_Ital_genotypes_SAHA <- italGenotypes(cutoff_0.99_SAHA_dat)
+  cutoff_0.99_Ital_genotypes_SAHA_autosomes <- italGenotypes(cutoff_0.99_SAHA_dat_autosomes)
+  cutoff_0.99_Ital_genotypes_SAHA_Z <- italGenotypes(cutoff_0.99_SAHA_dat_Z)
+  
+  cutoff_0.99_Ital_genotypes_sansSAHA <- italGenotypes(cutoff_0.99_sansSAHA_dat)
+  cutoff_0.99_Ital_genotypes_sansSAHA_autosomes <- italGenotypes(cutoff_0.99_sansSAHA_dat_autosomes)
+  cutoff_0.99_Ital_genotypes_sansSAHA_Z <- italGenotypes(cutoff_0.99_sansSAHA_dat_Z)
   
 # Function to create a dataframe with all the counts of each possible genotype grouped by population
   italGenotypeCounts <- function(italGenotypes_df) {
@@ -549,11 +870,20 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the function for each cutoff & SAHA/sansSAHA combo
   genotype_counts_0.90_SAHA <- italGenotypeCounts(cutoff_0.90_Ital_genotypes_SAHA)
+  genotype_counts_0.90_SAHA_autosomes <- italGenotypeCounts(cutoff_0.90_Ital_genotypes_SAHA_autosomes)
+  genotype_counts_0.90_SAHA_Z <- italGenotypeCounts(cutoff_0.90_Ital_genotypes_SAHA_Z)
+  
   genotype_counts_0.90_sansSAHA <- italGenotypeCounts(cutoff_0.90_Ital_genotypes_sansSAHA)
+  genotype_counts_0.90_sansSAHA_autosomes <- italGenotypeCounts(cutoff_0.90_Ital_genotypes_sansSAHA_autosomes)
+  genotype_counts_0.90_sansSAHA_Z <- italGenotypeCounts(cutoff_0.90_Ital_genotypes_sansSAHA_Z)
   
   genotype_counts_0.99_SAHA <- italGenotypeCounts(cutoff_0.99_Ital_genotypes_SAHA)
+  genotype_counts_0.99_SAHA_autosomes <- italGenotypeCounts(cutoff_0.99_Ital_genotypes_SAHA_autosomes)
+  genotype_counts_0.99_SAHA_Z <- italGenotypeCounts(cutoff_0.99_Ital_genotypes_SAHA_Z)
+  
   genotype_counts_0.99_sansSAHA <- italGenotypeCounts(cutoff_0.99_Ital_genotypes_sansSAHA)
-
+  genotype_counts_0.99_sansSAHA_autosomes <- italGenotypeCounts(cutoff_0.99_Ital_genotypes_sansSAHA_autosomes)
+  genotype_counts_0.99_sansSAHA_Z <- italGenotypeCounts(cutoff_0.99_Ital_genotypes_sansSAHA_Z)
     
 # Functions to create a dataframe with all the counts of each possible type of zygosity grouped by population
   zygosityCounts_sansSAHA <- function(genotype_counts_sansSAHA_df) {
@@ -596,10 +926,20 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the functions for each cutoff & SAHA/sansSAHA combo
   zygosity_counts_0.90_sansSAHA <- zygosityCounts_sansSAHA(genotype_counts_0.90_sansSAHA)
+  zygosity_counts_0.90_sansSAHA_autosomes <- zygosityCounts_sansSAHA(genotype_counts_0.90_sansSAHA_autosomes)
+  zygosity_counts_0.90_sansSAHA_Z <- zygosityCounts_sansSAHA(genotype_counts_0.90_sansSAHA_Z)
+  
   zygosity_counts_0.99_sansSAHA <- zygosityCounts_sansSAHA(genotype_counts_0.99_sansSAHA)
+  zygosity_counts_0.99_sansSAHA_autosomes <- zygosityCounts_sansSAHA(genotype_counts_0.99_sansSAHA_autosomes)
+  zygosity_counts_0.99_sansSAHA_Z <- zygosityCounts_sansSAHA(genotype_counts_0.99_sansSAHA_Z)
   
   zygosity_counts_0.90_SAHA <- zygosityCounts_SAHA(genotype_counts_0.90_SAHA)
+  zygosity_counts_0.90_SAHA_autosomes <- zygosityCounts_SAHA(genotype_counts_0.90_SAHA_autosomes)
+  zygosity_counts_0.90_SAHA_Z <- zygosityCounts_SAHA(genotype_counts_0.90_SAHA_Z)
+  
   zygosity_counts_0.99_SAHA <- zygosityCounts_SAHA(genotype_counts_0.99_SAHA)
+  zygosity_counts_0.99_SAHA_autosomes <- zygosityCounts_SAHA(genotype_counts_0.99_SAHA_autosomes)
+  zygosity_counts_0.99_SAHA_Z <- zygosityCounts_SAHA(genotype_counts_0.99_SAHA_Z)
   
 # Functions to create a dataframe of frequency per zygosity type per population
   zygosity_freq_sansSAHA <- function (zygosity_counts_sansSAHA_df) {
@@ -641,10 +981,21 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   
 # Run the functions on each 0.90/0.99 SAHA/sansSAHA combo
   zygosity_freq_0.90_sansSAHA <- zygosity_freq_sansSAHA(zygosity_counts_0.90_sansSAHA)
+  zygosity_freq_0.90_sansSAHA_autosomes <- zygosity_freq_sansSAHA(zygosity_counts_0.90_sansSAHA_autosomes)
+  zygosity_freq_0.90_sansSAHA_Z <- zygosity_freq_sansSAHA(zygosity_counts_0.90_sansSAHA_Z)
+  
   zygosity_freq_0.99_sansSAHA <- zygosity_freq_sansSAHA(zygosity_counts_0.99_sansSAHA)
+  zygosity_freq_0.99_sansSAHA_autosomes <- zygosity_freq_sansSAHA(zygosity_counts_0.99_sansSAHA_autosomes)
+  zygosity_freq_0.99_sansSAHA_Z <- zygosity_freq_sansSAHA(zygosity_counts_0.99_sansSAHA_Z)
   
   zygosity_freq_0.90_SAHA <- zygosity_freq_SAHA(zygosity_counts_0.90_SAHA)
+  zygosity_freq_0.90_SAHA_autosomes <- zygosity_freq_SAHA(zygosity_counts_0.90_SAHA_autosomes)
+  zygosity_freq_0.90_SAHA_Z <- zygosity_freq_SAHA(zygosity_counts_0.90_SAHA_Z)
+  
   zygosity_freq_0.99_SAHA <- zygosity_freq_SAHA(zygosity_counts_0.99_SAHA)
+  zygosity_freq_0.99_SAHA_autosomes <- zygosity_freq_SAHA(zygosity_counts_0.99_SAHA_autosomes)
+  zygosity_freq_0.99_SAHA_Z <- zygosity_freq_SAHA(zygosity_counts_0.99_SAHA_Z)
+  
   
 # Create a function to convert to long format!
   zygosity_freq_long <- function(zygosity_freq_SAHA_orSansSAHA_df) {
@@ -655,10 +1006,21 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
 
 # Run the function on each 0.90/0.99 SAHA/sansSAHA combo
   zygosity_freq_0.90_sansSAHA_long <- zygosity_freq_long(zygosity_freq_0.90_sansSAHA)
+  zygosity_freq_0.90_sansSAHA_autosomes_long <- zygosity_freq_long(zygosity_freq_0.90_sansSAHA_autosomes)
+  zygosity_freq_0.90_sansSAHA_Z_long <- zygosity_freq_long(zygosity_freq_0.90_sansSAHA_Z)
+  
   zygosity_freq_0.99_sansSAHA_long <- zygosity_freq_long(zygosity_freq_0.99_sansSAHA)
+  zygosity_freq_0.99_sansSAHA_autosomes_long <- zygosity_freq_long(zygosity_freq_0.99_sansSAHA_autosomes)
+  zygosity_freq_0.99_sansSAHA_Z_long <- zygosity_freq_long(zygosity_freq_0.99_sansSAHA_Z)
   
   zygosity_freq_0.90_SAHA_long <- zygosity_freq_long(zygosity_freq_0.90_SAHA)
+  zygosity_freq_0.90_SAHA_autosomes_long <- zygosity_freq_long(zygosity_freq_0.90_SAHA_autosomes)
+  zygosity_freq_0.90_SAHA_Z_long <- zygosity_freq_long(zygosity_freq_0.90_SAHA_Z)
+  
   zygosity_freq_0.99_SAHA_long <- zygosity_freq_long(zygosity_freq_0.99_SAHA)
+  zygosity_freq_0.99_SAHA_autosomes_long <- zygosity_freq_long(zygosity_freq_0.99_SAHA_autosomes)
+  zygosity_freq_0.99_SAHA_Z_long <- zygosity_freq_long(zygosity_freq_0.99_SAHA_Z)
+  
   
   
 # Create functions to plot stacked bar chart (SAHA/sansSAHA)
@@ -692,16 +1054,54 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   plot_zygosity_freq_sansSAHA(zygosity_freq_0.90_sansSAHA_long, "Genotype frequency per population at 0.90 cutoff")
   dev.off()
   
+  png(filename = "genotypeFreqPerPop_0.90_sansSAHA_autosomes.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_sansSAHA(zygosity_freq_0.90_sansSAHA_autosomes_long, "Genotype frequency per population at 0.90 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "genotypeFreqPerPop_0.90_sansSAHA_Z.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_sansSAHA(zygosity_freq_0.90_sansSAHA_Z_long, "Genotype frequency per population at 0.90 cutoff - Z")
+  dev.off()
+  
+  
+  
   png(filename = "genotypeFreqPerPop_0.99_sansSAHA.png", width = 2000, height = 1300, res = opt$res)
   plot_zygosity_freq_sansSAHA(zygosity_freq_0.99_sansSAHA_long, "Genotype frequency per population at 0.99 cutoff")
   dev.off()
+  
+  png(filename = "genotypeFreqPerPop_0.99_sansSAHA_autosomes.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_sansSAHA(zygosity_freq_0.99_sansSAHA_autosomes_long, "Genotype frequency per population at 0.99 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "genotypeFreqPerPop_0.99_sansSAHA_Z.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_sansSAHA(zygosity_freq_0.99_sansSAHA_Z_long, "Genotype frequency per population at 0.99 cutoff - Z")
+  dev.off()
+  
+  
   
   png(filename = "genotypeFreqPerPop_0.90_SAHA.png", width = 2000, height = 1300, res = opt$res)
   plot_zygosity_freq_SAHA(zygosity_freq_0.90_SAHA_long, "Genotype frequency per population at 0.90 cutoff")
   dev.off()
   
+  png(filename = "genotypeFreqPerPop_0.90_SAHA_autosomes.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_SAHA(zygosity_freq_0.90_SAHA_autosomes_long, "Genotype frequency per population at 0.90 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "genotypeFreqPerPop_0.90_SAHA_Z.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_SAHA(zygosity_freq_0.90_SAHA_Z_long, "Genotype frequency per population at 0.90 cutoff - Z")
+  dev.off()
+  
+  
+  
   png(filename = "genotypeFreqPerPop_0.99_SAHA.png", width = 2000, height = 1300, res = opt$res)
   plot_zygosity_freq_SAHA(zygosity_freq_0.99_SAHA_long, "Genotype frequency per population at 0.99 cutoff")
+  dev.off()
+  
+  png(filename = "genotypeFreqPerPop_0.99_SAHA_autosomes.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_SAHA(zygosity_freq_0.99_SAHA_autosomes_long, "Genotype frequency per population at 0.99 cutoff - autosomes")
+  dev.off()
+  
+  png(filename = "genotypeFreqPerPop_0.99_SAHA_Z.png", width = 2000, height = 1300, res = opt$res)
+  plot_zygosity_freq_SAHA(zygosity_freq_0.99_SAHA_Z_long, "Genotype frequency per population at 0.99 cutoff - Z")
   dev.off()
   
   # Takeaways: similar frequency of homozygous ancestral across populations.
@@ -711,7 +1111,8 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   # Malta and sicily more heterozygous spanish derived than other het
 
 # Number of types of sites v. chrom length @ 0.90 & 0.99 cutoff ####
-  
+
+# Keep code the way it was originally where I removed Z chroms from full designation set!
 # Function to subset cutoff_0.90_sansSAHA_dat & cutoff_0.99_sansSAHA_dat to include chrom names & site designation (no allele freqs or italian designations)
   nameDes_subset <- function(dat) {
     nameDes_subset_df <- dat %>% 
@@ -785,11 +1186,11 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
 # Run the plot function for the two types of cutoffs
   
   png(filename = "sitesvChromLength_0.90_SDHD.png", width = 2000, height = 1300, res = opt$res)
-  plot_desVlength(desVlength_0.90_DF_long, "Number of sites vs. chromosome length (0.90 cutoff, autosomes)")
+  plot_desVlength(desVlength_0.90_DF_long, "Number of sites vs. chromosome length (0.90 cutoff - autosomes)")
   dev.off()
   
   png(filename = "sitesvChromLength_0.99_SDHD.png", width = 2000, height = 1300, res = opt$res)
-  plot_desVlength(desVlength_0.99_DF_long, "Number of sites vs. chromosome length (0.99 cutoff, autosomes)")
+  plot_desVlength(desVlength_0.99_DF_long, "Number of sites vs. chromosome length (0.99 cutoff - autosomes)")
   dev.off()
   
 # Number of sites v. chrom length @ 0.90 & 0.99 cutoff ####
@@ -820,11 +1221,11 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
 
 # Plot!
   png(filename = "sitesvChromLength_0.90.png", width = 2000, height = 1300, res = opt$res)
-  plot_desGenVlength(desGenVlength_0.90_DF, "Number of sites vs. chromosome length (0.90 cutoff, autosomes)")
+  plot_desGenVlength(desGenVlength_0.90_DF, "Number of sites vs. chromosome length (0.90 cutoff - autosomes)")
   dev.off()
 
   png(filename = "sitesvChromLength_0.99.png", width = 2000, height = 1300, res = opt$res)
-  plot_desGenVlength(desGenVlength_0.99_DF, "Number of sites vs. chromosome length (0.99 cutoff, autosomes)")
+  plot_desGenVlength(desGenVlength_0.99_DF, "Number of sites vs. chromosome length (0.99 cutoff - autosomes)")
   dev.off()
   
 # Venn diagrams! ####
@@ -842,20 +1243,38 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   }
   
   corsica_vennList_cutoff_0.90 <- vennList(cutoff_0.90_SAHA_dat, popPrefix = "K0")
+  corsica_vennList_cutoff_0.90_autosomes <- vennList(cutoff_0.90_SAHA_dat_autosomes, popPrefix = "K0")
+  corsica_vennList_cutoff_0.90_Z <- vennList(cutoff_0.90_SAHA_dat_Z, popPrefix = "K0")
   
   crete_vennList_cutoff_0.90 <- vennList(cutoff_0.90_SAHA_dat, popPrefix = "C0")
+  crete_vennList_cutoff_0.90_autosomes <- vennList(cutoff_0.90_SAHA_dat_autosomes, popPrefix = "C0")
+  crete_vennList_cutoff_0.90_Z <- vennList(cutoff_0.90_SAHA_dat_Z, popPrefix = "C0")
   
   malta_vennList_cutoff_0.90 <- vennList(cutoff_0.90_SAHA_dat, popPrefix = "M0")
+  malta_vennList_cutoff_0.90_autosomes <- vennList(cutoff_0.90_SAHA_dat_autosomes, popPrefix = "M0")
+  malta_vennList_cutoff_0.90_Z <- vennList(cutoff_0.90_SAHA_dat_Z, popPrefix = "M0")
   
   sicily_vennList_cutoff_0.90 <- vennList(cutoff_0.90_SAHA_dat, popPrefix = "S0")
+  sicily_vennList_cutoff_0.90_autosomes <- vennList(cutoff_0.90_SAHA_dat_autosomes, popPrefix = "S0")
+  sicily_vennList_cutoff_0.90_Z <- vennList(cutoff_0.90_SAHA_dat_Z, popPrefix = "S0")
+  
   
   corsica_vennList_cutoff_0.99 <- vennList(cutoff_0.99_SAHA_dat, popPrefix = "K0")
+  corsica_vennList_cutoff_0.99_autosomes <- vennList(cutoff_0.99_SAHA_dat_autosomes, popPrefix = "K0")
+  corsica_vennList_cutoff_0.99_Z <- vennList(cutoff_0.99_SAHA_dat_Z, popPrefix = "K0")
   
   crete_vennList_cutoff_0.99 <- vennList(cutoff_0.99_SAHA_dat, popPrefix = "C0")
+  crete_vennList_cutoff_0.99_autosomes <- vennList(cutoff_0.99_SAHA_dat_autosomes, popPrefix = "C0")
+  crete_vennList_cutoff_0.99_Z <- vennList(cutoff_0.99_SAHA_dat_Z, popPrefix = "C0")
   
   malta_vennList_cutoff_0.99 <- vennList(cutoff_0.99_SAHA_dat, popPrefix = "M0")
+  malta_vennList_cutoff_0.99_autosomes <- vennList(cutoff_0.99_SAHA_dat_autosomes, popPrefix = "M0")
+  malta_vennList_cutoff_0.99_Z <- vennList(cutoff_0.99_SAHA_dat_Z, popPrefix = "M0")
   
   sicily_vennList_cutoff_0.99 <- vennList(cutoff_0.99_SAHA_dat, popPrefix = "S0")
+  sicily_vennList_cutoff_0.99_autosomes <- vennList(cutoff_0.99_SAHA_dat_autosomes, popPrefix = "S0")
+  sicily_vennList_cutoff_0.99_Z <- vennList(cutoff_0.99_SAHA_dat_Z, popPrefix = "S0")
+  
 
 # Use eulerr package to create a fit list
   
@@ -866,11 +1285,37 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
                                        Sicily = unique(sicily_vennList_cutoff_0.90$locus[sicily_vennList_cutoff_0.90$allele == "SD"]))
                                   )
   
+  fit_list_SD_0.90_autosomes <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.90_autosomes$locus[corsica_vennList_cutoff_0.90_autosomes$allele == "SD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.90_autosomes$locus[crete_vennList_cutoff_0.90_autosomes$allele == "SD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.90_autosomes$locus[malta_vennList_cutoff_0.90_autosomes$allele == "SD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.90_autosomes$locus[sicily_vennList_cutoff_0.90_autosomes$allele == "SD"]))
+  )
+  
+  fit_list_SD_0.90_Z <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.90_Z$locus[corsica_vennList_cutoff_0.90_Z$allele == "SD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.90_Z$locus[crete_vennList_cutoff_0.90_Z$allele == "SD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.90_Z$locus[malta_vennList_cutoff_0.90_Z$allele == "SD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.90_Z$locus[sicily_vennList_cutoff_0.90_Z$allele == "SD"]))
+  )
+  
+  
+  
   fit_list_SD_0.99 <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.99$locus[corsica_vennList_cutoff_0.99$allele == "SD"]),
                                        Crete = unique(crete_vennList_cutoff_0.99$locus[crete_vennList_cutoff_0.99$allele == "SD"]),
                                        Malta = unique(malta_vennList_cutoff_0.99$locus[malta_vennList_cutoff_0.99$allele == "SD"]),
                                        Sicily = unique(sicily_vennList_cutoff_0.99$locus[sicily_vennList_cutoff_0.99$allele == "SD"]))
-                                  )
+                                   )
+  
+  fit_list_SD_0.99_autosomes <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.99_autosomes$locus[corsica_vennList_cutoff_0.99_autosomes$allele == "SD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.99_autosomes$locus[crete_vennList_cutoff_0.99_autosomes$allele == "SD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.99_autosomes$locus[malta_vennList_cutoff_0.99_autosomes$allele == "SD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.99_autosomes$locus[sicily_vennList_cutoff_0.99_autosomes$allele == "SD"]))
+  )
+  
+  fit_list_SD_0.99_Z <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.99_Z$locus[corsica_vennList_cutoff_0.99_Z$allele == "SD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.99_Z$locus[crete_vennList_cutoff_0.99_Z$allele == "SD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.99_Z$locus[malta_vennList_cutoff_0.99_Z$allele == "SD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.99_Z$locus[sicily_vennList_cutoff_0.99_Z$allele == "SD"]))
+  )
   
   # Look at any occurence of HD at the locus (can be heterozygote/homozygote)
   fit_list_HD_0.90 <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.90$locus[corsica_vennList_cutoff_0.90$allele == "HD"]),
@@ -879,10 +1324,36 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
                                        Sicily = unique(sicily_vennList_cutoff_0.90$locus[sicily_vennList_cutoff_0.90$allele == "HD"]))
                                    )
   
+  fit_list_HD_0.90_autosomes <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.90_autosomes$locus[corsica_vennList_cutoff_0.90_autosomes$allele == "HD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.90_autosomes$locus[crete_vennList_cutoff_0.90_autosomes$allele == "HD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.90_autosomes$locus[malta_vennList_cutoff_0.90_autosomes$allele == "HD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.90_autosomes$locus[sicily_vennList_cutoff_0.90_autosomes$allele == "HD"]))
+  )
+  
+  fit_list_HD_0.90_Z <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.90_Z$locus[corsica_vennList_cutoff_0.90_Z$allele == "HD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.90_Z$locus[crete_vennList_cutoff_0.90_Z$allele == "HD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.90_Z$locus[malta_vennList_cutoff_0.90_Z$allele == "HD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.90_Z$locus[sicily_vennList_cutoff_0.90_Z$allele == "HD"]))
+  )
+  
+  
+  
   fit_list_HD_0.99 <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.99$locus[corsica_vennList_cutoff_0.99$allele == "HD"]),
                                         Crete = unique(crete_vennList_cutoff_0.99$locus[crete_vennList_cutoff_0.99$allele == "HD"]),
                                         Malta = unique(malta_vennList_cutoff_0.99$locus[malta_vennList_cutoff_0.99$allele == "HD"]),
                                         Sicily = unique(sicily_vennList_cutoff_0.99$locus[sicily_vennList_cutoff_0.99$allele == "HD"]))
+                                    )
+  
+  fit_list_HD_0.99_autosomes <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.99_autosomes$locus[corsica_vennList_cutoff_0.99_autosomes$allele == "HD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.99_autosomes$locus[crete_vennList_cutoff_0.99_autosomes$allele == "HD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.99_autosomes$locus[malta_vennList_cutoff_0.99_autosomes$allele == "HD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.99_autosomes$locus[sicily_vennList_cutoff_0.99_autosomes$allele == "HD"]))
+  )
+  
+  fit_list_HD_0.99_Z <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.99_Z$locus[corsica_vennList_cutoff_0.99_Z$allele == "HD"]),
+                                        Crete = unique(crete_vennList_cutoff_0.99_Z$locus[crete_vennList_cutoff_0.99_Z$allele == "HD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.99_Z$locus[malta_vennList_cutoff_0.99_Z$allele == "HD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.99_Z$locus[sicily_vennList_cutoff_0.99_Z$allele == "HD"]))
   )
   
 # Create plot function for venn diagram!
@@ -899,16 +1370,54 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
   plot_venn(fit_list_SD_0.90, "Spanish derived allele present in at least one copy\nat the same locus across samples in populations\n(0.90 cutoff)")
   dev.off()
   
+  png(filename = "vennSD_0.90_autosomes.png", width = 1700, height = 2100, res = opt$res)
+  plot_venn(fit_list_SD_0.90_autosomes, "Spanish derived allele present in at least one copy\nat the same locus across samples in populations\n(0.90 cutoff - autosomes)")
+  dev.off()
+  
+  png(filename = "vennSD_0.90_Z.png", width = 1700, height = 2100, res = opt$res)
+  plot_venn(fit_list_SD_0.90_Z, "Spanish derived allele present in at least one copy\nat the same locus across samples in populations\n(0.90 cutoff - Z)")
+  dev.off()
+  
+  
+  
   png(filename = "vennHD_0.90.png", width = 1650, height = 2100, res = opt$res)
   plot_venn(fit_list_HD_0.90, "House derived allele present in at least one copy\nat the same locus across samples in populations\n(0.90 cutoff)")
   dev.off()
+  
+  png(filename = "vennHD_0.90_autosomes.png", width = 1650, height = 2100, res = opt$res)
+  plot_venn(fit_list_HD_0.90_autosomes, "House derived allele present in at least one copy\nat the same locus across samples in populations\n(0.90 cutoff - autosomes)")
+  dev.off()
+  
+  png(filename = "vennHD_0.90_Z.png", width = 1650, height = 2100, res = opt$res)
+  plot_venn(fit_list_HD_0.90_Z, "House derived allele present in at least one copy\nat the same locus across samples in populations\n(0.90 cutoff - Z)")
+  dev.off()
+  
+  
   
   png(filename = "vennSD_0.99.png", width = 1700, height = 2100, res = opt$res)
   plot_venn(fit_list_SD_0.99, "Spanish derived allele present in at least one copy\nat the same locus across samples in populations\n(0.99 cutoff)")
   dev.off()
   
+  png(filename = "vennSD_0.99_autosomes.png", width = 1700, height = 2100, res = opt$res)
+  plot_venn(fit_list_SD_0.99_autosomes, "Spanish derived allele present in at least one copy\nat the same locus across samples in populations\n(0.99 cutoff - autosomes)")
+  dev.off()
+  
+  png(filename = "vennSD_0.99_Z.png", width = 1700, height = 2100, res = opt$res)
+  plot_venn(fit_list_SD_0.99_Z, "Spanish derived allele present in at least one copy\nat the same locus across samples in populations\n(0.99 cutoff - Z)")
+  dev.off()
+  
+  
+  
   png(filename = "vennHD_0.99.png", width = 1650, height = 2100, res = opt$res)
   plot_venn(fit_list_HD_0.99, "House derived allele present in at least one copy\nat the same locus across samples in populations\n(0.99 cutoff)")
+  dev.off()
+  
+  png(filename = "vennHD_0.99_autosomes.png", width = 1650, height = 2100, res = opt$res)
+  plot_venn(fit_list_HD_0.99_autosomes, "House derived allele present in at least one copy\nat the same locus across samples in populations\n(0.99 cutoff - autosomes)")
+  dev.off()
+  
+  png(filename = "vennHD_0.99_Z.png", width = 1650, height = 2100, res = opt$res)
+  plot_venn(fit_list_HD_0.99_Z, "House derived allele present in at least one copy\nat the same locus across samples in populations\n(0.99 cutoff - Z)")
   dev.off()
 
 

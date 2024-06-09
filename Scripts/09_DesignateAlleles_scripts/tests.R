@@ -1,12 +1,15 @@
 #!/usr/bin/env Rscript
 
 # R script that runs statistical tests (chi-sq, one sample prop, HW) on the designation files
+# ALso produces 3 versions of each output, 1 inlcuding both autosomes & Z, 1 with just autosomes, and 1 with just Z
 # Can be ran on 0.90 and 0.99 cutoff files before and after linkage pruninig
 
 # Example Usage:
-# Rscript tests_commandLine.R --sansSAHA_0.90 designationFiles/cutoff_0.90_sansSAHA.tsv \
-# --SAHA_0.90 designationFiles/cutoff_0.90_SAHA.tsv --sansSAHA_0.99 designationFiles/cutoff_0.99_sansSAHA.tsv \
+# Rscript tests.R --sansSAHA_0.90 designationFiles/cutoff_0.90_sansSAHA.tsv \
+# --SAHA_0.90 designationFiles/cutoff_0.90_SAHA.tsv \
+# --sansSAHA_0.99 designationFiles/cutoff_0.99_sansSAHA.tsv \
 # --SAHA_0.99 designationFiles/cutoff_0.99_SAHA.tsv
+
 
 # Install & load necessary packages ####
 
@@ -42,7 +45,7 @@ flag_list <- list(
   make_option(c("--SAHA_0.99"), type = "character", default = NULL, 
               help = "Input designation file for 0.99 cutoff, SAHA", metavar = "file_path"),
   
-  make_option(c("--width"), type = "integer", default = 1600, 
+  make_option(c("--width"), type = "integer", default = 1650, 
               help = "Width of output images in pixels [default= %default]", metavar = "integer"),
   
   make_option(c("--height"), type = "integer", default = 1350, 
@@ -70,14 +73,37 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
     return(dat)
   }
 
+# Function to pull just the autosomes from the designation file
+desFile_autosomes <- function(dat) {
+  dat <- dat %>%
+    filter(!str_detect(locus, "CM071456.1")) # remove Z chroms
+  return(dat)
+}
+
+# Function to pull just the Z from the designation file
+desFile_Z <- function(dat) {
+  dat <- dat %>%
+    filter(str_detect(locus, "CM071456.1")) # keep only Z chrom
+  return(dat)
+}
+
 # Read in the designation files
+  
   cutoff_0.90_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.90)
+  cutoff_0.90_sansSAHA_dat_autosomes <- desFile_autosomes(cutoff_0.90_sansSAHA_dat)
+  cutoff_0.90_sansSAHA_dat_Z <- desFile_Z(cutoff_0.90_sansSAHA_dat)
   
   cutoff_0.90_SAHA_dat <- read_desFile(opt$SAHA_0.90)
+  cutoff_0.90_SAHA_dat_autosomes <- desFile_autosomes(cutoff_0.90_SAHA_dat)
+  cutoff_0.90_SAHA_dat_Z <- desFile_Z(cutoff_0.90_SAHA_dat)
   
   cutoff_0.99_sansSAHA_dat <- read_desFile(opt$sansSAHA_0.99)
+  cutoff_0.99_sansSAHA_dat_autosomes <- desFile_autosomes(cutoff_0.99_sansSAHA_dat)
+  cutoff_0.99_sansSAHA_dat_Z <- desFile_Z(cutoff_0.99_sansSAHA_dat)
   
   cutoff_0.99_SAHA_dat <- read_desFile(opt$SAHA_0.99)
+  cutoff_0.99_SAHA_dat_autosomes <- desFile_autosomes(cutoff_0.99_SAHA_dat)
+  cutoff_0.99_SAHA_dat_Z <- desFile_Z(cutoff_0.99_SAHA_dat)
 
 # Chi Squared ####
   
@@ -113,16 +139,43 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
   
   # Run the function for each population at each cutoff
   corsica_alleleCounts_0.99 <- count_Italian_alleles(cutoff_0.99_SAHA_dat, population_prefix = "K0")
+  corsica_alleleCounts_0.99_autosomes <- count_Italian_alleles(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "K0")
+  corsica_alleleCounts_0.99_Z <- count_Italian_alleles(cutoff_0.99_SAHA_dat_Z, population_prefix = "K0")
+  
   corsica_alleleCounts_0.90 <- count_Italian_alleles(cutoff_0.90_SAHA_dat, population_prefix = "K0")
+  corsica_alleleCounts_0.90_autosomes <- count_Italian_alleles(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "K0")
+  corsica_alleleCounts_0.90_Z <- count_Italian_alleles(cutoff_0.90_SAHA_dat_Z, population_prefix = "K0")
+  
+  
   
   crete_alleleCounts_0.99 <- count_Italian_alleles(cutoff_0.99_SAHA_dat, population_prefix = "C0")
+  crete_alleleCounts_0.99_autosomes <- count_Italian_alleles(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "C0")
+  crete_alleleCounts_0.99_Z <- count_Italian_alleles(cutoff_0.99_SAHA_dat_Z, population_prefix = "C0")
+  
   crete_alleleCounts_0.90 <- count_Italian_alleles(cutoff_0.90_SAHA_dat, population_prefix = "C0")
+  crete_alleleCounts_0.90_autosomes <- count_Italian_alleles(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "C0")
+  crete_alleleCounts_0.90_Z <- count_Italian_alleles(cutoff_0.90_SAHA_dat_Z, population_prefix = "C0")
+  
+  
   
   malta_alleleCounts_0.99 <- count_Italian_alleles(cutoff_0.99_SAHA_dat, population_prefix = "M0")
+  malta_alleleCounts_0.99_autosomes <- count_Italian_alleles(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "M0")
+  malta_alleleCounts_0.99_Z <- count_Italian_alleles(cutoff_0.99_SAHA_dat_Z, population_prefix = "M0")
+  
   malta_alleleCounts_0.90 <- count_Italian_alleles(cutoff_0.90_SAHA_dat, population_prefix = "M0")
+  malta_alleleCounts_0.90_autosomes <- count_Italian_alleles(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "M0")
+  malta_alleleCounts_0.90_Z <- count_Italian_alleles(cutoff_0.90_SAHA_dat_Z, population_prefix = "M0")
+  
+  
   
   sicily_alleleCounts_0.99 <- count_Italian_alleles(cutoff_0.99_SAHA_dat, population_prefix = "S0")
+  sicily_alleleCounts_0.99_autosomes <- count_Italian_alleles(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "S0")
+  sicily_alleleCounts_0.99_Z <- count_Italian_alleles(cutoff_0.99_SAHA_dat_Z, population_prefix = "S0")
+  
   sicily_alleleCounts_0.90 <- count_Italian_alleles(cutoff_0.90_SAHA_dat, population_prefix = "S0")
+  sicily_alleleCounts_0.90_autosomes <- count_Italian_alleles(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "S0")
+  sicily_alleleCounts_0.90_Z <- count_Italian_alleles(cutoff_0.90_SAHA_dat_Z, population_prefix = "S0")
+  
   
   # First, compute chi-squared manually! ####
   # Function to create empty chi_squared df dataframes for each population/cutoff combo
@@ -135,16 +188,45 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
   }
 
   corsica_chiSquared_df_0.99 <- establish_chiSquare()
+  corsica_chiSquared_df_0.99_autosomes <- establish_chiSquare()
+  corsica_chiSquared_df_0.99_Z <- establish_chiSquare()
+  
   corsica_chiSquared_df_0.90 <- establish_chiSquare()
+  corsica_chiSquared_df_0.90_autosomes <- establish_chiSquare()
+  corsica_chiSquared_df_0.90_Z <- establish_chiSquare()
+  
+  
   
   crete_chiSquared_df_0.99 <- establish_chiSquare()
+  crete_chiSquared_df_0.99_autosomes <- establish_chiSquare()
+  crete_chiSquared_df_0.99_Z <- establish_chiSquare()
+  
   crete_chiSquared_df_0.90 <- establish_chiSquare()
+  crete_chiSquared_df_0.90_autosomes <- establish_chiSquare()
+  crete_chiSquared_df_0.90_Z <- establish_chiSquare()
+  
+  
   
   malta_chiSquared_df_0.99 <- establish_chiSquare()
+  malta_chiSquared_df_0.99_autosomes <- establish_chiSquare()
+  malta_chiSquared_df_0.99_Z <- establish_chiSquare()
+  
+  
+  
   malta_chiSquared_df_0.90 <- establish_chiSquare()
+  malta_chiSquared_df_0.90_autosomes <- establish_chiSquare()
+  malta_chiSquared_df_0.90_Z <- establish_chiSquare()
+  
+  
   
   sicily_chiSquared_df_0.99 <- establish_chiSquare()
+  sicily_chiSquared_df_0.99_autosomes <- establish_chiSquare()
+  sicily_chiSquared_df_0.99_Z <- establish_chiSquare()
+  
   sicily_chiSquared_df_0.90 <- establish_chiSquare()
+  sicily_chiSquared_df_0.90_autosomes <- establish_chiSquare()
+  sicily_chiSquared_df_0.90_Z <- establish_chiSquare()
+  
   
   # Function to create chi squared table!
   propDerived <- function(chi_squared_df, alleleCounts_df) {
@@ -180,30 +262,76 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
   }
   
   corsica_chiSquared_df_0.99 <- propDerived(chi_squared_df = corsica_chiSquared_df_0.99, alleleCounts_df = corsica_alleleCounts_0.99)
+  corsica_chiSquared_df_0.99_autosomes <- propDerived(chi_squared_df = corsica_chiSquared_df_0.99_autosomes, alleleCounts_df = corsica_alleleCounts_0.99_autosomes)
+  corsica_chiSquared_df_0.99_Z <- propDerived(chi_squared_df = corsica_chiSquared_df_0.99_Z, alleleCounts_df = corsica_alleleCounts_0.99_Z)
+  
   corsica_chiSquared_df_0.90 <- propDerived(chi_squared_df = corsica_chiSquared_df_0.90, alleleCounts_df = corsica_alleleCounts_0.90)
+  corsica_chiSquared_df_0.90_autosomes <- propDerived(chi_squared_df = corsica_chiSquared_df_0.90_autosomes, alleleCounts_df = corsica_alleleCounts_0.90_autosomes)
+  corsica_chiSquared_df_0.90_Z <- propDerived(chi_squared_df = corsica_chiSquared_df_0.90_Z, alleleCounts_df = corsica_alleleCounts_0.90_Z)
+  
   
   crete_chiSquared_df_0.99 <- propDerived(chi_squared_df = crete_chiSquared_df_0.99, alleleCounts_df = crete_alleleCounts_0.99)
+  crete_chiSquared_df_0.99_autosomes <- propDerived(chi_squared_df = crete_chiSquared_df_0.99_autosomes, alleleCounts_df = crete_alleleCounts_0.99_autosomes)
+  crete_chiSquared_df_0.99_Z <- propDerived(chi_squared_df = crete_chiSquared_df_0.99_Z, alleleCounts_df = crete_alleleCounts_0.99_Z)
+  
   crete_chiSquared_df_0.90 <- propDerived(chi_squared_df = crete_chiSquared_df_0.90, alleleCounts_df = crete_alleleCounts_0.90)
+  crete_chiSquared_df_0.90_autosomes <- propDerived(chi_squared_df = crete_chiSquared_df_0.90_autosomes, alleleCounts_df = crete_alleleCounts_0.90_autosomes)
+  crete_chiSquared_df_0.90_Z <- propDerived(chi_squared_df = crete_chiSquared_df_0.90_Z, alleleCounts_df = crete_alleleCounts_0.90_Z)
+  
   
   malta_chiSquared_df_0.99 <- propDerived(chi_squared_df = malta_chiSquared_df_0.99, alleleCounts_df = malta_alleleCounts_0.99)
+  malta_chiSquared_df_0.99_autosomes <- propDerived(chi_squared_df = malta_chiSquared_df_0.99_autosomes, alleleCounts_df = malta_alleleCounts_0.99_autosomes)
+  malta_chiSquared_df_0.99_Z <- propDerived(chi_squared_df = malta_chiSquared_df_0.99_Z, alleleCounts_df = malta_alleleCounts_0.99_Z)
+  
   malta_chiSquared_df_0.90 <- propDerived(chi_squared_df = malta_chiSquared_df_0.90, alleleCounts_df = malta_alleleCounts_0.90)
+  malta_chiSquared_df_0.90_autosomes <- propDerived(chi_squared_df = malta_chiSquared_df_0.90_autosomes, alleleCounts_df = malta_alleleCounts_0.90_autosomes)
+  malta_chiSquared_df_0.90_Z <- propDerived(chi_squared_df = malta_chiSquared_df_0.90_Z, alleleCounts_df = malta_alleleCounts_0.90_Z)
+  
   
   sicily_chiSquared_df_0.99 <- propDerived(chi_squared_df = sicily_chiSquared_df_0.99, alleleCounts_df = sicily_alleleCounts_0.99)
+  sicily_chiSquared_df_0.99_autosomes <- propDerived(chi_squared_df = sicily_chiSquared_df_0.99_autosomes, alleleCounts_df = sicily_alleleCounts_0.99_autosomes)
+  sicily_chiSquared_df_0.99_Z <- propDerived(chi_squared_df = sicily_chiSquared_df_0.99_Z, alleleCounts_df = sicily_alleleCounts_0.99_Z)
+  
   sicily_chiSquared_df_0.90 <- propDerived(chi_squared_df = sicily_chiSquared_df_0.90, alleleCounts_df = sicily_alleleCounts_0.90)
+  sicily_chiSquared_df_0.90_autosomes <- propDerived(chi_squared_df = sicily_chiSquared_df_0.90_autosomes, alleleCounts_df = sicily_alleleCounts_0.90_autosomes)
+  sicily_chiSquared_df_0.90_Z <- propDerived(chi_squared_df = sicily_chiSquared_df_0.90_Z, alleleCounts_df = sicily_alleleCounts_0.90_Z)
+  
   
   # Write the output to tsv files!
   write.table(corsica_chiSquared_df_0.99, file="corsica_manual_chiSquared_0.99.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(corsica_chiSquared_df_0.99_autosomes, file="corsica_manual_chiSquared_0.99_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(corsica_chiSquared_df_0.99_Z, file="corsica_manual_chiSquared_0.99_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  
   write.table(corsica_chiSquared_df_0.90, file="corsica_manual_chiSquared_0.90.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(corsica_chiSquared_df_0.90_autosomes, file="corsica_manual_chiSquared_0.90_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(corsica_chiSquared_df_0.90_Z, file="corsica_manual_chiSquared_0.90_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  
   
   write.table(crete_chiSquared_df_0.99, file="crete_manual_chiSquared_0.99.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(crete_chiSquared_df_0.99_autosomes, file="crete_manual_chiSquared_0.99_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(crete_chiSquared_df_0.99_Z, file="crete_manual_chiSquared_0.99_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  
   write.table(crete_chiSquared_df_0.90, file="crete_manual_chiSquared_0.90.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(crete_chiSquared_df_0.90_autosomes, file="crete_manual_chiSquared_0.90_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(crete_chiSquared_df_0.90_Z, file="crete_manual_chiSquared_0.90_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  
   
   write.table(malta_chiSquared_df_0.99, file="malta_manual_chiSquared_0.99.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(malta_chiSquared_df_0.99_autosomes, file="malta_manual_chiSquared_0.99_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(malta_chiSquared_df_0.99_Z, file="malta_manual_chiSquared_0.99_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  
   write.table(malta_chiSquared_df_0.90, file="malta_manual_chiSquared_0.90.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(malta_chiSquared_df_0.90_autosomes, file="malta_manual_chiSquared_0.90_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(malta_chiSquared_df_0.90_Z, file="malta_manual_chiSquared_0.90_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  
   
   write.table(sicily_chiSquared_df_0.99, file="sicily_manual_chiSquared_0.99.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(sicily_chiSquared_df_0.99_autosomes, file="sicily_manual_chiSquared_0.99_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(sicily_chiSquared_df_0.99_Z, file="sicily_manual_chiSquared_0.99_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  
   write.table(sicily_chiSquared_df_0.90, file="sicily_manual_chiSquared_0.90.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-
+  write.table(sicily_chiSquared_df_0.90_autosomes, file="sicily_manual_chiSquared_0.90_autosomes.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(sicily_chiSquared_df_0.90_Z, file="sicily_manual_chiSquared_0.90_Z.tsv", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   
   # Compute chi-squared using built in packages ####
   
@@ -219,16 +347,40 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
   
   # Run the function
   corsica_contigency_0.99 <- contigency_df(corsica_alleleCounts_0.99)
+  corsica_contigency_0.99_autosomes <- contigency_df(corsica_alleleCounts_0.99_autosomes)
+  corsica_contigency_0.99_Z <- contigency_df(corsica_alleleCounts_0.99_Z)
+  
   corsica_contigency_0.90 <- contigency_df(corsica_alleleCounts_0.90)
+  corsica_contigency_0.90_autosomes <- contigency_df(corsica_alleleCounts_0.90_autosomes)
+  corsica_contigency_0.90_Z <- contigency_df(corsica_alleleCounts_0.90_Z)
+  
   
   crete_contigency_0.99 <- contigency_df(crete_alleleCounts_0.99)
+  crete_contigency_0.99_autosomes <- contigency_df(crete_alleleCounts_0.99_autosomes)
+  crete_contigency_0.99_Z <- contigency_df(crete_alleleCounts_0.99_Z)
+  
   crete_contigency_0.90 <- contigency_df(crete_alleleCounts_0.90)
+  crete_contigency_0.90_autosomes <- contigency_df(crete_alleleCounts_0.90_autosomes)
+  crete_contigency_0.90_Z <- contigency_df(crete_alleleCounts_0.90_Z)
+  
   
   malta_contigency_0.99 <- contigency_df(malta_alleleCounts_0.99)
+  malta_contigency_0.99_autosomes <- contigency_df(malta_alleleCounts_0.99_autosomes)
+  malta_contigency_0.99_Z <- contigency_df(malta_alleleCounts_0.99_Z)
+  
   malta_contigency_0.90 <- contigency_df(malta_alleleCounts_0.90)
+  malta_contigency_0.90_autosomes <- contigency_df(malta_alleleCounts_0.90_autosomes)
+  malta_contigency_0.90_Z <- contigency_df(malta_alleleCounts_0.90_Z)
+  
   
   sicily_contigency_0.99 <- contigency_df(sicily_alleleCounts_0.99)
+  sicily_contigency_0.99_autosomes <- contigency_df(sicily_alleleCounts_0.99_autosomes)
+  sicily_contigency_0.99_Z <- contigency_df(sicily_alleleCounts_0.99_Z)
+  
   sicily_contigency_0.90 <- contigency_df(sicily_alleleCounts_0.90)
+  sicily_contigency_0.90_autosomes <- contigency_df(sicily_alleleCounts_0.90_autosomes)
+  sicily_contigency_0.90_Z <- contigency_df(sicily_alleleCounts_0.90_Z)
+  
   
   # Visualize the contigency tables!
   
@@ -252,74 +404,246 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
             baloon_fileName = "corsica_0.99_chiContigencyTable_baloon.png",
             mosaic_fileName = "corsica_0.99_chiContigencyTable_mosaic.png")
   
+  visualize(corsica_contigency_0.99_autosomes, plot_title = "Corsica (0.99 cutoff, autosomes) - allele designations",
+            baloon_fileName = "corsica_0.99_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "corsica_0.99_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(corsica_contigency_0.99_Z, plot_title = "Corsica (0.99 cutoff, Z) - allele designations",
+            baloon_fileName = "corsica_0.99_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "corsica_0.99_chiContigencyTable_mosaic_Z.png")
+  
+  
+  
   visualize(corsica_contigency_0.90, plot_title = "Corsica (0.90 cutoff) - allele designations",
             baloon_fileName = "corsica_0.90_chiContigencyTable_baloon.png",
             mosaic_fileName = "corsica_0.90_chiContigencyTable_mosaic.png")
+  
+  visualize(corsica_contigency_0.90_autosomes, plot_title = "Corsica (0.90 cutoff, autosomes) - allele designations",
+            baloon_fileName = "corsica_0.90_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "corsica_0.90_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(corsica_contigency_0.90_Z, plot_title = "Corsica (0.90 cutoff, Z) - allele designations",
+            baloon_fileName = "corsica_0.90_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "corsica_0.90_chiContigencyTable_mosaic_Z.png")
+  
+  
   
   visualize(crete_contigency_0.99, plot_title = "Crete (0.99 cutoff) - allele designations",
             baloon_fileName = "crete_0.99_chiContigencyTable_baloon.png",
             mosaic_fileName = "crete_0.99_chiContigencyTable_mosaic.png")
   
+  visualize(crete_contigency_0.99_autosomes, plot_title = "Crete (0.99 cutoff, autosomes) - allele designations",
+            baloon_fileName = "crete_0.99_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "crete_0.99_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(crete_contigency_0.99_Z, plot_title = "Crete (0.99 cutoff, Z) - allele designations",
+            baloon_fileName = "crete_0.99_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "crete_0.99_chiContigencyTable_mosaic_Z.png")
+  
+  
+  
   visualize(crete_contigency_0.90, plot_title = "Crete (0.90 cutoff) - allele designations",
             baloon_fileName = "crete_0.90_chiContigencyTable_baloon.png",
             mosaic_fileName = "crete_0.90_chiContigencyTable_mosaic.png")
+  
+  visualize(crete_contigency_0.90_autosomes, plot_title = "Crete (0.90 cutoff, autosomes) - allele designations",
+            baloon_fileName = "crete_0.90_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "crete_0.90_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(crete_contigency_0.90_Z, plot_title = "Crete (0.90 cutoff, Z) - allele designations",
+            baloon_fileName = "crete_0.90_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "crete_0.90_chiContigencyTable_mosaic_Z.png")
+  
+  
   
   visualize(malta_contigency_0.99, plot_title = "Malta (0.99 cutoff) - allele designations",
             baloon_fileName = "malta_0.99_chiContigencyTable_baloon.png",
             mosaic_fileName = "malta_0.99_chiContigencyTable_mosaic.png")
   
+  visualize(malta_contigency_0.99_autosomes, plot_title = "Malta (0.99 cutoff, autosomes) - allele designations",
+            baloon_fileName = "malta_0.99_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "malta_0.99_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(malta_contigency_0.99_Z, plot_title = "Malta (0.99 cutoff, Z) - allele designations",
+            baloon_fileName = "malta_0.99_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "malta_0.99_chiContigencyTable_mosaic_Z.png")
+  
+  
+  
   visualize(malta_contigency_0.90, plot_title = "Malta (0.90 cutoff) - allele designations",
             baloon_fileName = "malta_0.90_chiContigencyTable_baloon.png",
             mosaic_fileName = "malta_0.90_chiContigencyTable_mosaic.png")
+  
+  visualize(malta_contigency_0.90_autosomes, plot_title = "Malta (0.90 cutoff, autosomes) - allele designations",
+            baloon_fileName = "malta_0.90_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "malta_0.90_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(malta_contigency_0.90_Z, plot_title = "Malta (0.90 cutoff, Z) - allele designations",
+            baloon_fileName = "malta_0.90_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "malta_0.90_chiContigencyTable_mosaic_Z.png")
+  
+  
   
   visualize(sicily_contigency_0.99, plot_title = "Sicily (0.99 cutoff) - allele designations",
             baloon_fileName = "sicily_0.99_chiContigencyTable_baloon.png",
             mosaic_fileName = "sicily_0.99_chiContigencyTable_mosaic.png")
   
+  visualize(sicily_contigency_0.99_autosomes, plot_title = "Sicily (0.99 cutoff, autosomes) - allele designations",
+            baloon_fileName = "sicily_0.99_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "sicily_0.99_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(sicily_contigency_0.99_Z, plot_title = "Sicily (0.99 cutoff, Z) - allele designations",
+            baloon_fileName = "sicily_0.99_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "sicily_0.99_chiContigencyTable_mosaic_Z.png")
+  
+  
+  
   visualize(sicily_contigency_0.90, plot_title = "Sicily (0.90 cutoff) - allele designations",
             baloon_fileName = "sicily_0.90_chiContigencyTable_baloon.png",
             mosaic_fileName = "sicily_0.90_chiContigencyTable_mosaic.png")
   
+  visualize(sicily_contigency_0.90_autosomes, plot_title = "Sicily (0.90 cutoff, autosomes) - allele designations",
+            baloon_fileName = "sicily_0.90_chiContigencyTable_baloon_autosomes.png",
+            mosaic_fileName = "sicily_0.90_chiContigencyTable_mosaic_autosomes.png")
+  
+  visualize(sicily_contigency_0.90_Z, plot_title = "Sicily (0.90 cutoff, Z) - allele designations",
+            baloon_fileName = "sicily_0.90_chiContigencyTable_baloon_Z.png",
+            mosaic_fileName = "sicily_0.90_chiContigencyTable_mosaic_Z.png")
+  
   # Run chi-squared tests, Pearson's Chi-squared test with Yates' continuity correction & save output!
   
   sink("corsica_0.99_chisq.test.out")
-  corsica_0.99_chisq <- chisq.test(corsica_contigency_0.99) # X-squared = 76534, df = 1, p-value < 2.2e-16
+  corsica_0.99_chisq <- chisq.test(corsica_contigency_0.99) # X-squared = 76534, p-value < 2.2e-16
   print(corsica_0.99_chisq)
   sink()
   
+  sink("corsica_0.99_chisq.test_autosomes.out")
+  corsica_0.99_chisq_autosomes <- chisq.test(corsica_contigency_0.99_autosomes) # X-squared = 59620, p-value < 2.2e-16
+  print(corsica_0.99_chisq_autosomes)
+  sink()
+  
+  sink("corsica_0.99_chisq.test_Z.out")
+  corsica_0.99_chisq_Z <- chisq.test(corsica_contigency_0.99_Z) # X-squared = 36480, p-value < 2.2e-16
+  print(corsica_0.99_chisq_Z)
+  sink()
+
+  
+  
   sink("corsica_0.90_chisq.test.out")
-  corsica_0.90_chisq <- chisq.test(corsica_contigency_0.90) # X-squared = 219825, df = 1, p-value < 2.2e-16
+  corsica_0.90_chisq <- chisq.test(corsica_contigency_0.90) # X-squared = 219825, p-value < 2.2e-16
   print(corsica_0.90_chisq)
   sink()
   
+  sink("corsica_0.90_chisq.test_autosomes.out")
+  corsica_0.90_chisq_autosomes <- chisq.test(corsica_contigency_0.90_autosomes) # X-squared = 201868, p-value < 2.2e-16
+  print(corsica_0.90_chisq_autosomes)
+  sink()
+  
+  sink("corsica_0.90_chisq.test_Z.out")
+  corsica_0.90_chisq_Z <- chisq.test(corsica_contigency_0.90_Z) # X-squared = 65823, p-value < 2.2e-16
+  print(corsica_0.90_chisq_Z)
+  sink()
+  
+
+  
   sink("crete_0.99_chisq.test.out")
-  crete_0.99_chisq <- chisq.test(crete_contigency_0.99) # X-squared = 15610, df = 1, p-value < 2.2e-16
+  crete_0.99_chisq <- chisq.test(crete_contigency_0.99) # X-squared = 15610, p-value < 2.2e-16
   print(crete_0.99_chisq)
   sink()
   
+  sink("crete_0.99_chisq.test_autosomes.out")
+  crete_0.99_chisq_autosomes <- chisq.test(crete_contigency_0.99_autosomes) # X-squared = 13045, p-value < 2.2e-16
+  print(crete_0.99_chisq_autosomes)
+  sink()
+  
+  sink("crete_0.99_chisq.test_Z.out")
+  crete_0.99_chisq_Z <- chisq.test(crete_contigency_0.99_Z) # X-squared = 7439.3, p-value < 2.2e-16
+  print(crete_0.99_chisq_Z)
+  sink()
+  
+  
+  
   sink("crete_0.90_chisq.test.out")
-  crete_0.90_chisq <- chisq.test(crete_contigency_0.90) # X-squared = 68868, df = 1, p-value < 2.2e-16
+  crete_0.90_chisq <- chisq.test(crete_contigency_0.90) # X-squared = 68868, p-value < 2.2e-16
   print(crete_0.90_chisq)
   sink()
   
+  sink("crete_0.90_chisq.test_autosomes.out")
+  crete_0.90_chisq_autosomes <- chisq.test(crete_contigency_0.90_autosomes) # X-squared = 67666, p-value < 2.2e-16
+  print(crete_0.90_chisq_autosomes)
+  sink()
+  
+  sink("crete_0.90_chisq.test_Z.out")
+  crete_0.90_chisq_Z <- chisq.test(crete_contigency_0.90_Z) # X-squared = 19022, p-value < 2.2e-16
+  print(crete_0.90_chisq_Z)
+  sink()
+  
+
+  
   sink("malta_0.99_chisq.test.out")
-  malta_0.99_chisq <- chisq.test(malta_contigency_0.99) # X-squared = 43406, df = 1, p-value < 2.2e-16
+  malta_0.99_chisq <- chisq.test(malta_contigency_0.99) # X-squared = 43406, p-value < 2.2e-16
   print(malta_0.99_chisq)
   sink()
   
+  sink("malta_0.99_chisq.test_autosomes.out")
+  malta_0.99_chisq_autosomes <- chisq.test(malta_contigency_0.99_autosomes) # X-squared = 32763, p-value < 2.2e-16
+  print(malta_0.99_chisq_autosomes)
+  sink()
+  
+  sink("malta_0.99_chisq.test_Z.out")
+  malta_0.99_chisq_Z <- chisq.test(malta_contigency_0.99_Z) # X-squared = 20122, p-value < 2.2e-16
+  print(malta_0.99_chisq_Z)
+  sink()
+  
+  
+  
   sink("malta_0.90_chisq.test.out")
-  malta_0.90_chisq <- chisq.test(malta_contigency_0.90) # X-squared = 116713, df = 1, p-value < 2.2e-16
+  malta_0.90_chisq <- chisq.test(malta_contigency_0.90) # X-squared = 116713, p-value < 2.2e-16
   print(malta_0.90_chisq)
   sink()
+  
+  sink("malta_0.90_chisq.test_autosomes.out")
+  malta_0.90_chisq_autosomes <- chisq.test(malta_contigency_0.90_autosomes) # X-squared = 103823, p-value < 2.2e-16
+  print(malta_0.90_chisq_autosomes)
+  sink()
+  
+  sink("malta_0.90_chisq.test_Z.out")
+  malta_0.90_chisq_Z <- chisq.test(malta_contigency_0.90_Z) # X-squared = 35708, p-value < 2.2e-16
+  print(malta_0.90_chisq_Z)
+  sink()
+  
+  
 
   sink("sicily_0.99_chisq.test.out")
-  sicily_0.99_chisq <- chisq.test(sicily_contigency_0.99) # X-squared = 40556, df = 1, p-value < 2.2e-16
+  sicily_0.99_chisq <- chisq.test(sicily_contigency_0.99) # X-squared = 40556, p-value < 2.2e-16
   print(sicily_0.99_chisq)
   sink()
   
+  sink("sicily_0.99_chisq.test_autosomes.out")
+  sicily_0.99_chisq_autosomes <- chisq.test(sicily_contigency_0.99_autosomes) # X-squared = 31809, p-value < 2.2e-16
+  print(sicily_0.99_chisq_autosomes)
+  sink()
+  
+  sink("sicily_0.99_chisq.test_Z.out")
+  sicily_0.99_chisq_Z <- chisq.test(sicily_contigency_0.99_Z) # X-squared = 19043, p-value < 2.2e-16
+  print(sicily_0.99_chisq_Z)
+  sink()
+  
+  
+  
   sink("sicily_0.90_chisq.test.out")
-  sicily_0.90_chisq <- chisq.test(sicily_contigency_0.90) # X-squared = 112549, df = 1, p-value < 2.2e-16
+  sicily_0.90_chisq <- chisq.test(sicily_contigency_0.90) # X-squared = 112549, p-value < 2.2e-16
   print(sicily_0.90_chisq)
+  sink()
+  
+  sink("sicily_0.90_chisq.test_autosomes.out")
+  sicily_0.90_chisq_autosomes <- chisq.test(sicily_contigency_0.90_autosomes) # X-squared = 101330, p-value < 2.2e-16
+  print(sicily_0.90_chisq_autosomes)
+  sink()
+  
+  sink("sicily_0.90_chisq.test_Z.out")
+  sicily_0.90_chisq_Z <- chisq.test(sicily_contigency_0.90_Z) # X-squared = 34357, p-value < 2.2e-16
+  print(sicily_0.90_chisq_Z)
   sink()
   
 # One sample proportion test (test derived against expectation of 50%) ####
@@ -350,16 +674,41 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
   
   # Run the function
   corsica_DA_Counts_0.99 <- count_Italian_DA(cutoff_0.99_SAHA_dat, population_prefix = "K0")
+  corsica_DA_Counts_0.99_autosomes <- count_Italian_DA(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "K0")
+  corsica_DA_Counts_0.99_Z <- count_Italian_DA(cutoff_0.99_SAHA_dat_Z, population_prefix = "K0")
+  
   corsica_DA_Counts_0.90 <- count_Italian_DA(cutoff_0.90_SAHA_dat, population_prefix = "K0")
+  corsica_DA_Counts_0.90_autosomes <- count_Italian_DA(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "K0")
+  corsica_DA_Counts_0.90_Z <- count_Italian_DA(cutoff_0.90_SAHA_dat_Z, population_prefix = "K0")
+  
   
   crete_DA_Counts_0.99 <- count_Italian_DA(cutoff_0.99_SAHA_dat, population_prefix = "C0")
+  crete_DA_Counts_0.99_autosomes <- count_Italian_DA(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "C0")
+  crete_DA_Counts_0.99_Z <- count_Italian_DA(cutoff_0.99_SAHA_dat_Z, population_prefix = "C0")
+  
   crete_DA_Counts_0.90 <- count_Italian_DA(cutoff_0.90_SAHA_dat, population_prefix = "C0")
+  crete_DA_Counts_0.90_autosomes <- count_Italian_DA(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "C0")
+  crete_DA_Counts_0.90_Z <- count_Italian_DA(cutoff_0.90_SAHA_dat_Z, population_prefix = "C0")
+  
   
   malta_DA_Counts_0.99 <- count_Italian_DA(cutoff_0.99_SAHA_dat, population_prefix = "M0")
+  malta_DA_Counts_0.99_autosomes <- count_Italian_DA(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "M0")
+  malta_DA_Counts_0.99_Z <- count_Italian_DA(cutoff_0.99_SAHA_dat_Z, population_prefix = "M0")
+  
+  
   malta_DA_Counts_0.90 <- count_Italian_DA(cutoff_0.90_SAHA_dat, population_prefix = "M0")
+  malta_DA_Counts_0.90_autosomes <- count_Italian_DA(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "M0")
+  malta_DA_Counts_0.90_Z <- count_Italian_DA(cutoff_0.90_SAHA_dat_Z, population_prefix = "M0")
+  
   
   sicily_DA_Counts_0.99 <- count_Italian_DA(cutoff_0.99_SAHA_dat, population_prefix = "S0")
+  sicily_DA_Counts_0.99_autosomes <- count_Italian_DA(cutoff_0.99_SAHA_dat_autosomes, population_prefix = "S0")
+  sicily_DA_Counts_0.99_Z <- count_Italian_DA(cutoff_0.99_SAHA_dat_Z, population_prefix = "S0")
+  
   sicily_DA_Counts_0.90 <- count_Italian_DA(cutoff_0.90_SAHA_dat, population_prefix = "S0")
+  sicily_DA_Counts_0.90_autosomes <- count_Italian_DA(cutoff_0.90_SAHA_dat_autosomes, population_prefix = "S0")
+  sicily_DA_Counts_0.90_Z <- count_Italian_DA(cutoff_0.90_SAHA_dat_Z, population_prefix = "S0")
+  
   
   # Create a prop test function
   prop_test <- function(population_DA_Counts_cutoff) {
@@ -378,39 +727,133 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
   print(corsica_prop_0.99)
   sink()
   
+  sink("corsica_0.99_prop.test_autosomes.out")
+  corsica_prop_0.99_autosomes <- prop_test(corsica_DA_Counts_0.99_autosomes) # reject null (supports purging of derived), p ≈ 0.4606978, p-value: < 2.2e-16
+  print(corsica_prop_0.99_autosomes)
+  sink()
+  
+  sink("corsica_0.99_prop.test.out_Z")
+  corsica_prop_0.99_Z <- prop_test(corsica_DA_Counts_0.99_Z) # reject null (supports purging of derived), p ≈ 0.4805283, p-value: < 2.2e-16
+  print(corsica_prop_0.99_Z)
+  sink()
+  
+  
+  
   sink("corsica_0.90_prop.test.out")
   corsica_prop_0.90 <- prop_test(corsica_DA_Counts_0.90) # reject null (supports purging of derived), p ≈ 0.4754222, p-value: < 2.2e-16
   print(corsica_prop_0.90)
   sink()
+  
+  sink("corsica_0.90_prop.test_autosomes.out")
+  corsica_prop_0.90_autosomes <- prop_test(corsica_DA_Counts_0.90_autosomes) # reject null (supports purging of derived), p ≈ 0.4689378, p-value: < 2.2e-16
+  print(corsica_prop_0.90_autosomes)
+  sink()
+  
+  sink("corsica_0.90_prop.test_Z.out")
+  corsica_prop_0.90_Z <- prop_test(corsica_DA_Counts_0.90_Z) # reject null (supports purging of derived), p ≈ 0.4786021, p-value: < 2.2e-16
+  print(corsica_prop_0.90_Z)
+  sink()
+  
+  
   
   sink("crete_0.99_prop.test.out")
   crete_prop_0.99 <- prop_test(crete_DA_Counts_0.99) # reject null (supports purging of derived), p ≈ 0.45231, p-value: < 2.2e-16
   print(crete_prop_0.99)
   sink()
   
+  sink("crete_0.99_prop.test_autosomes.out")
+  crete_prop_0.99_autosomes <- prop_test(crete_DA_Counts_0.99_autosomes) # reject null (supports purging of derived), p ≈ 0.4058428, p-value: < 2.2e-16
+  print(crete_prop_0.99_autosomes)
+  sink()
+  
+  sink("crete_0.99_prop.test_Z.out")
+  crete_prop_0.99_Z <- prop_test(crete_DA_Counts_0.99_Z) # reject null (supports purging of derived), p ≈ 0.4626612, p-value: < 2.2e-16
+  print(crete_prop_0.99_Z)
+  sink()
+  
+  
+  
   sink("crete_0.90_prop.test.out")
   crete_prop_0.90 <- prop_test(crete_DA_Counts_0.90) # reject null (supports purging of derived), p ≈ 0.4549287, p-value: < 2.2e-16
   print(crete_prop_0.90)
   sink()
+  
+  sink("crete_0.90_prop.test_autosomes.out")
+  crete_prop_0.90_autosomes <- prop_test(crete_DA_Counts_0.90_autosomes) # reject null (supports purging of derived), p ≈ 0.4343378, p-value: < 2.2e-16
+  print(crete_prop_0.90_autosomes)
+  sink()
+  
+  sink("crete_0.90_prop.test_Z.out")
+  crete_prop_0.90_Z <- prop_test(crete_DA_Counts_0.90_Z) # reject null (supports purging of derived), p ≈ 0.4650208, p-value: < 2.2e-16
+  print(crete_prop_0.90_Z)
+  sink()
+  
+  
   
   sink("malta_0.99_prop.test.out")
   malta_prop_0.99 <- prop_test(malta_DA_Counts_0.99) # Fail to reject null, p ≈ 0.5069567, p-value: < 2.2e-16
   print(malta_prop_0.99)
   sink()
   
+  sink("malta_0.99_prop.test_autosomes.out")
+  malta_prop_0.99_autosomes <- prop_test(malta_DA_Counts_0.99_autosomes) # reject null (supports purging of derived), p ≈ 0.4920219, p-value: < 2.2e-16
+  print(malta_prop_0.99_autosomes)
+  sink()
+  
+  sink("malta_0.99_prop.test_Z.out")
+  malta_prop_0.99_Z <- prop_test(malta_DA_Counts_0.99_Z) # Fail to reject null, p ≈ 0.5102887, p-value: < 2.2e-16
+  print(malta_prop_0.99_Z)
+  sink()
+  
+  
+  
   sink("malta_0.90_prop.test.out")
   malta_prop_0.90 <- prop_test(malta_DA_Counts_0.90) # Fail to reject null, p ≈ 0.511139, p-value: < 2.2e-16
   print(malta_prop_0.90)
   sink()
+  
+  sink("malta_0.90_prop.test_autosomes.out")
+  malta_prop_0.90_autosomes <- prop_test(malta_DA_Counts_0.90_autosomes) # Fail to reject null, p ≈ 0.5090471, p-value: < 2.2e-16
+  print(malta_prop_0.90_autosomes)
+  sink()
+  
+  sink("malta_0.90_prop.test_Z.out")
+  malta_prop_0.90_Z <- prop_test(malta_DA_Counts_0.90_Z) # Fail to reject null, p ≈ 0.5121653, p-value: < 2.2e-16
+  print(malta_prop_0.90_Z)
+  sink()
+  
+  
   
   sink("sicily_0.99_prop.test.out")
   sicily_prop_0.99 <- prop_test(sicily_DA_Counts_0.99) # Fail to reject null, p ≈ 0.5150267, p-value: < 2.2e-16
   print(sicily_prop_0.99)
   sink()
   
+  sink("sicily_0.99_prop.test_autosomes.out")
+  sicily_prop_0.99_autosomes <- prop_test(sicily_DA_Counts_0.99_autosomes) # Fail to reject null, p ≈ 0.5178981, p-value: < 2.2e-16
+  print(sicily_prop_0.99_autosomes)
+  sink()
+  
+  sink("sicily_0.99_prop.test_Z.out")
+  sicily_prop_0.99_Z <- prop_test(sicily_DA_Counts_0.99_Z) # Fail to reject null, p ≈ 0.5143866, p-value: < 2.2e-16
+  print(sicily_prop_0.99_Z)
+  sink()
+  
+  
+  
   sink("sicily_0.90_prop.test.out")
   sicily_prop_0.90 <- prop_test(sicily_DA_Counts_0.90) # Fail to reject null, p ≈ 0.5172192, p-value: < 2.2e-16
   print(sicily_prop_0.90)
+  sink()
+  
+  sink("sicily_0.90_prop.test_autosomes.out")
+  sicily_prop_0.90_autosomes <- prop_test(sicily_DA_Counts_0.90_autosomes) # Fail to reject null, p ≈ 0.5206796, p-value: < 2.2e-16
+  print(sicily_prop_0.90_autosomes)
+  sink()
+  
+  sink("sicily_0.90_prop.test_Z.out")
+  sicily_prop_0.90_Z <- prop_test(sicily_DA_Counts_0.90_Z) # Fail to reject null, p ≈ 0.5155221, p-value: < 2.2e-16
+  print(sicily_prop_0.90_Z)
   sink()
 
 # Hardy-Weinberg ####
@@ -540,28 +983,77 @@ opt <- parse_args(opt_parser) # can reference user provided arguments using opt$
   }
   
   # Run the function
-  corsica_genotypeFreq_0.99 <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat, "K0") 
+  corsica_genotypeFreq_0.99 <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat, "K0")
+  corsica_genotypeFreq_0.99_autosomes <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_autosomes, "K0") 
+  corsica_genotypeFreq_0.99_Z <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_Z, "K0") 
+  
+  
   corsica_genotypeFreq_0.90 <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat, "K0") 
+  corsica_genotypeFreq_0.90_autosomes <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_autosomes, "K0") 
+  corsica_genotypeFreq_0.90_Z <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_Z, "K0") 
+  
   
   crete_genotypeFreq_0.99 <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat, "C0") 
+  crete_genotypeFreq_0.99_autosomes <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_autosomes, "C0") 
+  crete_genotypeFreq_0.99_Z <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_Z, "C0") 
+  
   crete_genotypeFreq_0.90 <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat, "C0")
+  crete_genotypeFreq_0.90_autosomes <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_autosomes, "C0")
+  crete_genotypeFreq_0.90_Z <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_Z, "C0")
+  
   
   malta_genotypeFreq_0.99 <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat, "M0")
+  malta_genotypeFreq_0.99_autosomes <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_autosomes, "M0")
+  malta_genotypeFreq_0.99_Z <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_Z, "M0")
+  
   malta_genotypeFreq_0.90 <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat, "M0")
+  malta_genotypeFreq_0.90_autosomes <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_autosomes, "M0")
+  malta_genotypeFreq_0.90_Z <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_Z, "M0")
+  
   
   sicily_genotypeFreq_0.99 <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat, "S0")
+  sicily_genotypeFreq_0.99_autosomes <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_autosomes, "S0")
+  sicily_genotypeFreq_0.99_Z <- genotype_freqs_observed_expected(cutoff_0.99_sansSAHA_dat_Z, "S0")
+  
   sicily_genotypeFreq_0.90 <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat, "S0")
+  sicily_genotypeFreq_0.90_autosomes <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_autosomes, "S0")
+  sicily_genotypeFreq_0.90_Z <- genotype_freqs_observed_expected(cutoff_0.90_sansSAHA_dat_Z, "S0")
+  
   
   # Write the outputs to a tsv
   write.table(corsica_genotypeFreq_0.99, file="corsica_0.99_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(corsica_genotypeFreq_0.99_autosomes, file="corsica_0.99_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(corsica_genotypeFreq_0.99_Z, file="corsica_0.99_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   write.table(corsica_genotypeFreq_0.90, file="corsica_0.90_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(corsica_genotypeFreq_0.90_autosomes, file="corsica_0.90_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(corsica_genotypeFreq_0.90_Z, file="corsica_0.90_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   
   write.table(crete_genotypeFreq_0.99, file="crete_0.99_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(crete_genotypeFreq_0.99_autosomes, file="crete_0.99_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(crete_genotypeFreq_0.99_Z, file="crete_0.99_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   write.table(crete_genotypeFreq_0.90, file="crete_0.90_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(crete_genotypeFreq_0.90_autosomes, file="crete_0.90_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(crete_genotypeFreq_0.90_Z, file="crete_0.90_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   
   write.table(malta_genotypeFreq_0.99, file="malta_0.99_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(malta_genotypeFreq_0.99_autosomes, file="malta_0.99_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(malta_genotypeFreq_0.99_Z, file="malta_0.99_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   write.table(malta_genotypeFreq_0.90, file="malta_0.90_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(malta_genotypeFreq_0.90_autosomes, file="malta_0.90_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(malta_genotypeFreq_0.90_Z, file="malta_0.90_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   
   write.table(sicily_genotypeFreq_0.99, file="sicily_0.99_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(sicily_genotypeFreq_0.99_autosomes, file="sicily_0.99_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(sicily_genotypeFreq_0.99_Z, file="sicily_0.99_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   write.table(sicily_genotypeFreq_0.90, file="sicily_0.90_HW_genotypeFreq.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(sicily_genotypeFreq_0.90_autosomes, file="sicily_0.90_HW_genotypeFreq_autosomes.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  write.table(sicily_genotypeFreq_0.90_Z, file="sicily_0.90_HW_genotypeFreq_Z.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+  
   
