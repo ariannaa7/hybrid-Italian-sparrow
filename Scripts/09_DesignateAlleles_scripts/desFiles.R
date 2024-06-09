@@ -1,18 +1,31 @@
 #!/usr/bin/env Rscript
 
-# Example usage!
+# R script that that is used to visualize designation file output
+# Can be ran on 0.80, 0.85, 0.90, 0.95, & 0.99 cutoff files with or without selecting 10 randsom corsicans +
+# before or after linkage pruninig
 
-# Rscript desFiles.R --tenRandomCorsicans yes --sansSAHA_0.80 ../newDesignationFiles/cutoff_0.80_sansSAHA.tsv 
-# --SAHA_0.80 ../newDesignationFiles/cutoff_0.80_SAHA.tsv --sansSAHA_0.85 ../newDesignationFiles/cutoff_0.85_sansSAHA.tsv 
-# --SAHA_0.85 ../newDesignationFiles/cutoff_0.85_SAHA.tsv --sansSAHA_0.90 ../newDesignationFiles/cutoff_0.90_sansSAHA.tsv 
-# --SAHA_0.90 ../newDesignationFiles/cutoff_0.90_SAHA.tsv --sansSAHA_0.95 ../newDesignationFiles/cutoff_0.95_sansSAHA.tsv 
-# --SAHA_0.95 ../newDesignationFiles/cutoff_0.95_SAHA.tsv --sansSAHA_0.99 ../newDesignationFiles/cutoff_0.99_sansSAHA.tsv 
-# --SAHA_0.99 ../newDesignationFiles/cutoff_0.99_SAHA.tsv -s ../sequence_report.tsv
+# Example usage:
+# Rscript desFiles.R --tenRandomCorsicans yes --sansSAHA_0.80 designationFiles/cutoff_0.80_sansSAHA.tsv \
+# --SAHA_0.80 designationFiles/cutoff_0.80_SAHA.tsv --sansSAHA_0.85 designationFiles/cutoff_0.85_sansSAHA.tsv \
+# --SAHA_0.85 designationFiles/cutoff_0.85_SAHA.tsv --sansSAHA_0.90 designationFiles/cutoff_0.90_sansSAHA.tsv \
+# --SAHA_0.90 designationFiles/cutoff_0.90_SAHA.tsv --sansSAHA_0.95 designationFiles/cutoff_0.95_sansSAHA.tsv \
+# --SAHA_0.95 designationFiles/cutoff_0.95_SAHA.tsv --sansSAHA_0.99 designationFiles/cutoff_0.99_sansSAHA.tsv \
+# --SAHA_0.99 designationFiles/cutoff_0.99_SAHA.tsv -s sequence_report.tsv
 
+# Install & load necessary packages ####
 
-# Load packages ####
-library(optparse) # allow use of command line flags
-library(tidyverse) # data frame manipulation & plotting
+# List of packages needed
+packages <- c("optparse", # v 1.7.5, allow use of command line flags
+              "tidyverse") # v 2.0.0, data frame manipulation & plotting
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages], repos = "https://cloud.r-project.org/") # error message if we don't set cran mirror
+}
+
+# Load the packages
+invisible(lapply(packages, library, character.only = TRUE))
 
 # Run from command line! ####
 
@@ -868,10 +881,10 @@ opt <- parse_args(opt_parser) # can refrence user provided arguments using opt$r
                                    )
   
   fit_list_HD_0.99 <- eulerr::venn(list(Corsica = unique(corsica_vennList_cutoff_0.99$locus[corsica_vennList_cutoff_0.99$allele == "HD"]),
-                                       Crete = unique(crete_vennList_cutoff_0.99$locus[crete_vennList_cutoff_0.99$allele == "HD"]),
-                                       Malta = unique(malta_vennList_cutoff_0.99$locus[malta_vennList_cutoff_0.99$allele == "HD"]),
-                                       Sicily = unique(sicily_vennList_cutoff_0.99$locus[sicily_vennList_cutoff_0.99$allele == "HD"]))
-                                  )
+                                        Crete = unique(crete_vennList_cutoff_0.99$locus[crete_vennList_cutoff_0.99$allele == "HD"]),
+                                        Malta = unique(malta_vennList_cutoff_0.99$locus[malta_vennList_cutoff_0.99$allele == "HD"]),
+                                        Sicily = unique(sicily_vennList_cutoff_0.99$locus[sicily_vennList_cutoff_0.99$allele == "HD"]))
+  )
   
 # Create plot function for venn diagram!
   plot_venn <- function(fitList, title) { # title should be string with ""

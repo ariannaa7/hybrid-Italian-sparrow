@@ -1,8 +1,23 @@
 #!/usr/bin/env Rscript
 
-# Load packages ####
-library(optparse) # allow use of command line flags
-library(tidyverse) # data frame manipulation & plotting
+# R script that will plot the number of variants present in each chromosome compared to chromosome length
+# Example Usage:
+# Rscript vcf_stats.R -t variantsPerChrom_sansMaxMiss.list -s sequence_report.tsv
+
+# Install & load necessary packages ####
+
+# List of packages needed
+packages <- c("optparse", # v 1.7.5, allow use of command line flags
+              "tidyverse") # v 2.0.0, data frame manipulation & plotting
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages], repos = "https://cloud.r-project.org/") # error message if we don't set cran mirror
+}
+
+# Load the packages
+invisible(lapply(packages, library, character.only = TRUE))
 
 # Run from command line! ####
 

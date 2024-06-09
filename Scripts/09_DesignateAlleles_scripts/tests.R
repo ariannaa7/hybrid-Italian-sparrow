@@ -1,10 +1,30 @@
-# Load packages ####
-library(tidyverse) # data frame manipulation & plotting, version 2.0.0
-library(stats) # one sample prop test functions, version 4.3.3
-library(gplots) # balloonplot, version 3.1.3.1
-library(graphics) # mosaicplot, version 4.3.3
-library(rcompanion) #cramersv, version 2.4.36
-library(optparse) # allow use of command line flags
+#!/usr/bin/env Rscript
+
+# R script that runs statistical tests (chi-sq, one sample prop, HW) on the designation files
+# Can be ran on 0.90 and 0.99 cutoff files before and after linkage pruninig
+
+# Example Usage:
+# Rscript tests_commandLine.R --sansSAHA_0.90 designationFiles/cutoff_0.90_sansSAHA.tsv \
+# --SAHA_0.90 designationFiles/cutoff_0.90_SAHA.tsv --sansSAHA_0.99 designationFiles/cutoff_0.99_sansSAHA.tsv \
+# --SAHA_0.99 designationFiles/cutoff_0.99_SAHA.tsv
+
+# Install & load necessary packages ####
+
+# List of packages needed
+packages <- c("optparse", # v 1.7.5, allow use of command line flags
+              "tidyverse", # v 2.0.0, data frame manipulation & plotting
+              "stats", # v 4.3.3, one sample prop test functions
+              "gplots", # v 3.1.3.1, balloonplot 
+              "graphics") # v 4.3.3, mosaicplot
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages], repos = "https://cloud.r-project.org/") # error message if we don't set cran mirror
+}
+
+# Load the packages
+invisible(lapply(packages, library, character.only = TRUE))
 
 # Run from command line! ####
 
