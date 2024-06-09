@@ -1,8 +1,7 @@
 #!/usr/bin/env Rscript
 
 # R script that that is used to visualize designation file output
-# Can be ran on 0.80, 0.85, 0.90, 0.95, & 0.99 cutoff files with or without selecting 10 randsom corsicans +
-# before or after linkage pruninig
+# Can be ran on 0.80, 0.85, 0.90, 0.95, & 0.99 cutoff files with or without selecting 10 randsom corsicans
 
 # Example usage:
 # Rscript desFiles.R --tenRandomCorsicans yes --sansSAHA_0.80 designationFiles/cutoff_0.80_sansSAHA.tsv \
