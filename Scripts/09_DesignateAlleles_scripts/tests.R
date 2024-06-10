@@ -732,7 +732,7 @@ desFile_Z <- function(dat) {
   print(corsica_prop_0.99_autosomes)
   sink()
   
-  sink("corsica_0.99_prop.test.out_Z")
+  sink("corsica_0.99_prop.test_Z.out")
   corsica_prop_0.99_Z <- prop_test(corsica_DA_Counts_0.99_Z) # reject null (supports purging of derived), p ≈ 0.4805283, p-value: < 2.2e-16
   print(corsica_prop_0.99_Z)
   sink()
