@@ -597,10 +597,10 @@ mkdir 08_Filtering_scripts
 # Includes max-missingness parameter, submitted batch job 46594888
 sbatch -A naiss2023-5-262 --array=1-333 --ntasks=20 -t 6:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/08_Filtering/InclMaxMissing -e ../../Job_logs/08_Filtering_logs/InclMaxMissing/filtering_autosomesZ_%a.err -o ../../Job_logs/08_Filtering_logs/InclMaxMissing/filtering_autosomesZ_%a.out -J filtering_autosomesZ_inclMaxMiss --mail-user=ar4666al-s@student.lu.se --mail-type=ALL filterBiallelic_autosomesZ_inclMaxMiss.sh
 
-# Includes max-missingness parameter, submitted batch job 46611874
+# DOES NOT INCLUDE max-missingness parameter, submitted batch job 46611874
 sbatch -A naiss2023-5-262 --array=1-333 --ntasks=20 -t 5:00:00 -D /proj/sparrowhybridization/Pitaliae/working/Arianna/08_Filtering/SansMaxMissing -e ../../Job_logs/08_Filtering_logs/SansMaxMissing/filtering_autosomesZ_%a.err -o ../../Job_logs/08_Filtering_logs/SansMaxMissing/filtering_autosomesZ_%a.out -J filtering_autosomesZ_sansMaxMiss --mail-user=ar4666al-s@student.lu.se --mail-type=ALL filterBiallelic_autosomesZ_sansMaxMiss.sh
 ```
-Outputs: 334 compressed VCF files in each subdirectory (InclMaxMissing and SansMaxMissing) of 08_Filtering. Files are named 126sample_[regionID]_biallelicSites_filtered.vcf.gz
+Outputs: 333 (not including W chrom!) compressed VCF files in each subdirectory (InclMaxMissing and SansMaxMissing) of 08_Filtering. Files are named 126sample_[regionID]_biallelicSites_filtered.vcf.gz
 
 ## Concatenate the scaffold VCFs
 ```bash
@@ -1235,7 +1235,7 @@ mv *vcf nearGene_sites/
 ```
 Outputs: two directories named VCF_cutoff_[cutoff]_intersections. Within each directory are 6 subdirectories named after features called exon_sites, geneAndNearGene10000_sites, gene_sites, intergenic_sites, and nearGene_sites. Each subdirectory contains 41 VCF files named [chromID]_cutoff_[cutoff]_[feature]_intersection.vcf
 
-# GO analysis
+# GO analysis - SCRAPPED!
 
 ## Create tab separated list of Gene_IDs and associated GO_IDs
 ```bash
@@ -1276,6 +1276,13 @@ cat GCF_036417665.1-RS_2024_04_gene_ontology.gaf | grep -v "\!" | cut -f 2 | sor
 
 # Compare to number of lines present in geneID_goID.tsv
 cat geneID_goID.tsv | wc -l # 16024 gene IDS, exact match!
+
+# Add a header to the top of the file,
+echo -e "GeneID\tGO_ID" > annotationHeader
+cat annotationHeader geneID_goID.tsv > temp.tsv 
+mv temp.tsv geneID_goID.tsv
+
+rm annotationHeader # remove this temporary file
 ```
 Output: 1 file called geneID_goID.tsv located in the 11_GOanalysis directory
 
@@ -1503,6 +1510,7 @@ done
 ```
 Output: 4 subdirectories called exon_sites_HD, exon_sites_SD, gene_sites_HD, gene_sites_SD located within the GFF_cutoff_0.99_SD_HD_intersections subdirectory. Within each [feature]_sites_[designation] subdirectory are 41 gff intersection files! They have been intersection with a VCF that contains SD or HD sites at the 0.99 cutoff and follow this naming convention: [chromID]_cutoff_0.99_[feature]_[siteDesignation]_intersection.gff
 
+
 ### Pull the outlier genes into a file
 ```bash
 # Move into this directory if not already there!
@@ -1528,23 +1536,124 @@ for dir in in ${subsetted_gff_dir}/gene_sites_*D; do # two directories gene_site
     done
 
 done
+
+# Add a header to each file
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis
+echo "geneID" > candidatesHeader # create a header file
+
+outlier_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/outlier_GeneID_files" # set the output directory, the dir where the tsvs are currently
+
+for dir in ${outlier_dir}/outlier_GeneID_files_*D; do
+
+    for tsv in ${dir}/*.tsv; do
+
+        cat candidatesHeader ${tsv} > "$dir/temp.tsv" # create a temp file
+
+        mv "${dir}/temp.tsv" "$tsv" # override the current file with the temp file (using the current file name)
+
+    done
+
+done
+
+rm candidatesHeader # remove this unecessary file
 ```
 Outputs: two subdirectories called outlier_GeneID_files_HD and outlier_GeneID_files_SD within the outlier_GeneID_files subdirectory. Within each of the two subdirectories are 41 files following this naming convention: [chromID]_cutoff_0.99_gene_[siteDesignation]_intersection_outlierGeneID.tsv. The file is a list with gene IDs fo HD/SD sites that fall within genes at the 0.99 cutoff
 
 
 ## Run using Kalle's GO_term scripts
 ```bash
-# Move to scripts folder!
-cd /proj/sparrowhybridization/Pitaliae/working/Arianna/Scripts
-mkdir 11_GOanalysis_scripts
-cd 11_GOanalysis_scripts # copy Kalle's GSEA_script to here
+# Made some adjustments to existing GO_terms (BP = biological process & MF = molecular function) script!
+# re-wrote package installations as some packages require BiocManager
+# change emptying of objects from objects() to rm(list = objects())
+# Replaced comment that specified unecessary japponicus specific header, replaced with comment that explains actual necessary header
 
-# Move back to 11_GOanalysis
-cd /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis
-mkdir final_inputs
 
-#
+# Issues with R package installation on server (even after loading R/4.2.1)
+# When packages are not installed on local computer, R script effectively installs them from command line so it does work.
+# Move to local computer to run this analysis (in the spirit of efficiency)
+
+# Local comp
+cd ~/BINP37
+mkdir 11_GOanalysis
+cd 11_GOanalysis # copy Kalle's updated GSEA_script here
+mkdir GO_output
+
+# Copy the necessary files
+scp arianna2@rackham.uppmax.uu.se:/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/geneID_goID.tsv .
+scp -r arianna2@rackham.uppmax.uu.se:/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/outlier_GeneID_files .
+
+# Run the script from the GO_analysis_output directory!
+
+for outlier_tsv in outlier_GeneID_files/outlier_GeneID_files_*D/*tsv; do
+
+    Rscript GSEA_script_updated.R geneID_goID.tsv ${outlier_tsv}
+
+done # will output into the the associated outlier_GeneID_files_*D directory, sort files post-productions
+
+# Move to folder with outputs
+cd GO_output
+mkdir HD_output SD_output
+
+# Sort outputs by designation (SD or HD)
+for candidate_dir in ../outlier_GeneID_files/outlier_GeneID_files_*D; do
+
+    site_des=$(basename "$candidate_dir" | cut -d "_" -f 4) # pull the site designation from the end of the dir name
+
+    for output_file in ${candidate_dir}/*GSEA*; do
+
+        mv ${output_file} "./${site_des}_output"
+
+    done
+
+done
+
+# Further sort output by go term, BP or MF
+for output_dir in *D_output; do
+
+
+    for output_file in ${output_dir}/*GSEA*; do
+
+        go_term=$(basename "$output_file" | cut -d "_" -f 7 | cut -d "." -f 3) # isolates the BP or MF from file name
+
+        # Path for where the file should be moved to
+        term_output_dir="${output_dir}/${go_term}_output"
+
+        # If the directory doesn't already exist, make one
+        mkdir -p "$term_output_dir" # -p will prevent warning messages about being unable to make dir bc it already exists from being printed
+
+        mv "$output_file" "$term_output_dir" # move file to associated term sub directory
+
+    done
+
+
+done
+
+# Further sort output by chromosome!
+for output_dir in *D_output/*_output; do
+
+
+    for output_file in ${output_dir}/*GSEA*; do
+
+        chromID=$(basename "$output_file" | cut -d "_" -f 1) # isolates the chromID from file name
+
+        # Path for where the file should be moved to
+        chrom_output_dir="${output_dir}/${chromID}_output"
+
+        # If the directory doesn't already exist, make one
+        mkdir -p "$chrom_output_dir" # -p will prevent warning messages about being unable to make dir bc it already exists from being printed
+
+        mv "$output_file" "$chrom_output_dir" # move file to associated chromosome sub directory
+
+    done
+
+
+done
+
 ```
+Outputs: subdirectories named [chromID]_output within parent directories MF_output and BP_output nested within parent directories named SD_output and HD_output all within directory called GO_output. There are 12 chromosome subdirectories within HD/BP, 10 in HD/MF, 15 SD/BP, and 13 in SD/MF. Not every chromosome has a directory because some don't have candidate genes and some that have few genes might be able to produce results with BP for example but not MF. 
+
+## For GO analysis, would be more interesting to look at HD sites, SD sites, and the intersesction between the two! And to re-run with all autosomes together and Z separate! Ran out of time, but this is a good starting point for analysis
+
 
 # Linkage pruning, then re-run some stats in R
 
@@ -1617,6 +1726,7 @@ cat pruned_0.99_cutoff/*prune.in > prune_in_0.99_cutoff # list of [chromID]_[pos
 Outputs: pruned_0.90_cutoff pruned_0.99_cutoff directories wich store prune.in, prune.out, .log, .nosex outputs AND the prune_in_0.90_cutoff prune_in_0.99_cutoff lists which shows all the [chromID]_[positions] to keep after pruning!
 
 ## Subset the designation files based on prune.in sites
+
 ```bash
 
 # Subset the 0.99 and 0.90 designation files for prune.in sites
@@ -1666,8 +1776,8 @@ done
 # Sort the output files
 cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files
 
-mkdir pruned_desFiles_0.99_cutoff
-mv *tsv pruned_desFiles_0.99_cutoff
+mkdir pruned_desFiles_sepByChrom_0.99_cutoff
+mv *tsv pruned_desFiles_sepByChrom_0.99_cutoff
 
 
 # Repeat for 0.90 ccutoff, directory containing the files - 0.90 cutoff
@@ -1711,6 +1821,570 @@ done
 # Sort the output files
 cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files
 
-mkdir pruned_desFiles_0.90_cutoff
-mv *tsv pruned_desFiles_0.90_cutoff
+mkdir pruned_desFiles_sepByChrom_0.90_cutoff
+mv *tsv pruned_desFiles_sepByChrom_0.90_cutoff
+
+# Create a concatenated version of the TSVs at each cuttoff (so all chroms in 1), reuse code from above
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files # if not there already
+
+for dir in pruned_desFiles_sepByChrom_*_cutoff; do
+
+    cutoff=$(basename "$dir" | cut -d "_" -f 4 )
+
+    for SAHA_tsv in ${dir}/*_SAHA_pruned.tsv; do
+
+        # Will include each of the headers from the independent designation files
+        cat ${SAHA_tsv} >> "./pruned_cutoff_${cutoff}_SAHA.tsv" # 0.90 - 564 lines incl headers, 0.99 - 308 lines incl headers
+
+    done
+
+    for sansSAHA_tsv in ${dir}/*_sansSAHA_pruned.tsv; do
+
+        cat ${sansSAHA_tsv} >> "./pruned_cutoff_${cutoff}_sansSAHA.tsv" # 0.90 - 564 lines incl headers, 0.99 - 308 lines incl headers
+
+    done
+done 
+
+
+# Only keep the first header, remove all the duplicate headers throughout the file
+for comp_designation_file in *.tsv; do
+    awk '/^#/ && !header_seen {print; header_seen=1; next} !/^#/' ${comp_designation_file} > "${comp_designation_file}_temp"
+
+    # overwrite the file to reflect the temp file with just one header
+    mv ${comp_designation_file}_temp "${comp_designation_file}"
+done
 ```
+Outputs: 4 output files (1 for each cutoff SAHA/sansSAHA combo in the Pruned_designation_files directory). Files are named pruned_cutoff_[cutoffLevel]_[sansSAHA/SAHA].tsv. 
+
+## Copy the pruned designation files to the local computer and re-run desFiles.R and tests.R
+
+# Heatmaps
+
+## Create a pruned version of VCF files to use in visualization!
+
+```bash
+# Move to working directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+
+# Will mostly be used to store inputs as we will run the R scripts on local computer!
+mkdir 13_Heatmaps # make a symbolic directory called 13_Heatmaps! Won't store anything here, just to keep track of steps
+cd 13_Heatmaps
+
+# Use the prune.in sites list we used previously to create a Regions file for bcftools! chrom\tposition
+cat ../12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.90_cutoff | tr "_" "\t" > prune_in_0.90_cutoff_bcftoolsFormat
+cat ../12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.99_cutoff | tr "_" "\t" > prune_in_0.99_cutoff_bcftoolsFormat
+
+# bgzip the subsetted VCFs
+mkdir Subsetted_VCFs_bgzipped
+
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load bcftools/1.14
+
+vcf_parent_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/10_BEDTools/VCFs_subsettedDerviedSites"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/13_Heatmaps/Subsetted_VCFs_bgzipped"
+
+for vcf_dir in "$vcf_parent_dir"/cutoff_0.9*_subsettedVCFs; do
+
+    vcf_dir_name=$(basename "$vcf_dir" ) # pulls just the name, not whole path
+
+    for vcf in "$vcf_dir"/*vcf; do
+        
+        vcf_name=$(basename "$vcf" ) # keep the .vcf ending!
+
+        sub_output_dir="${output_dir}/${vcf_dir_name}_bgzipped"
+
+        mkdir -p ${sub_output_dir} # will not override existing dir
+    
+        bcftools view ${vcf} -Oz --threads 20 -o "${sub_output_dir}/${vcf_name}.gz" 
+
+    done
+
+done # took ~2 minutes
+```
+Outputs: 41 bgzipped vcf files (subsetted by 0.90 and 0.99 cutoff) per cutoff! Located in Subsetted_VCFs_bgzipped/cutoff_[cutoff]_subsettedVCFs_bgzipped/[.vcf files]
+
+```bash
+# Now index the compressed subsetted vcfs
+vcf_parent_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/13_Heatmaps/Subsetted_VCFs_bgzipped"
+
+for vcf_dir in "$vcf_parent_dir"/cutoff_0.9*_subsettedVCFs_bgzipped; do
+
+    for vcf in "$vcf_dir"/*vcf.gz; do
+        
+        bcftools index ${vcf}
+
+    done
+
+done # took ~2 minutes
+
+```
+Outputs: each of the vcf.gz files that were outputted from above should be accompanied by a .csi file, 82 in total (41 for each cutoff)
+
+```bash
+# Move to 13_Heatmaps dir
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/13_Heatmaps
+mkdir Subsetted_VCFs_linkagePruned
+
+# Now run bcftools to only keep specific site
+
+vcf_parent_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/13_Heatmaps/Subsetted_VCFs_bgzipped"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/13_Heatmaps/Subsetted_VCFs_linkagePruned"
+
+
+for vcf_dir in "$vcf_parent_dir"/cutoff_0.9*_subsettedVCFs_bgzipped; do
+
+    vcf_dir_name=$(basename "$vcf_dir" ) # pulls just the name, not whole path
+    cutoff=$(basename "$vcf_dir" | cut -d "_" -f 2 )
+
+    for vcf in "$vcf_dir"/*vcf.gz; do
+        
+        vcf_name=$(basename "$vcf" .vcf.gz ) # file name without .vcf.gz
+
+        sub_output_dir="${output_dir}/pruned_${vcf_dir_name}"
+
+        mkdir -p ${sub_output_dir} # will not override existing dir
+
+        # use the cutoff associated prune.in list
+        bcftools view ${vcf} -R "prune_in_${cutoff}_cutoff_bcftoolsFormat" -Oz -o "${sub_output_dir}/${vcf_name}_pruned.vcf.gz" 
+    
+
+    done
+
+done # took ~1 minute
+
+# Check that total number of sites left matches number of prune.in sites
+zcat Subsetted_VCFs_linkagePruned/pruned_cutoff_0.90_subsettedVCFs_bgzipped/*_subset_cutoff_0.90_pruned.vcf.gz | grep -v "#" | wc -l # 523, matches
+zcat Subsetted_VCFs_linkagePruned/pruned_cutoff_0.99_subsettedVCFs_bgzipped/*_subset_cutoff_0.99_pruned.vcf.gz | grep -v "#" | wc -l # 267, matches
+
+# Copy the linkage pruned subsetted VCFs to local directory and use for heatmaps!
+
+
+for vcf in ls ../../Rscripts/genotypePlot/VCF_inputs/VCFs_subsettedDerviedSites/cutoff_0.90_subsettedVCFs/*vcf; do
+    Rscript genotypePlot_VCFs.R --VCF ${vcf}
+done
+```
+
+## Data visalization - use genotype plot to visualize vcf files
+
+```bash
+# Continue working on local computer to generate scripts and outputs!
+# Use genotype_plot package from https://github.com/JimWhiting91/genotype_plot
+# genotypePlot_VCFs.R script - uses vcf file (subset by derived sites) such as CM071426.1_subset_cutoff_0.99.vcf and outputs visualization of
+# genotypes across chromosome
+
+```
+
+## Data visualization - create an R script to visualize site designation along a chromosome
+```bash
+# Continue working on local computer to generate scripts and outputs!
+# chromHeatMap.R script - uses designation file such as cutoff_0.90_SAHA.tsv or pruned_cutoff_0.90_SAHA.tsv and outputs heatmap showing site des along chromosomes
+
+
+for file in *0.90_HW_genotypeFreq_Z.tsv; do echo -e "\n==> $file <=="; cat "$file"; done | less -S
+
+
+```
+# Linkage prune again, just for 0.99! See how plots and stats change!
+## Generate a list of prune.in sites!
+```bash
+# Return to linkage pruning directory
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning
+
+# Move to the directory that is storing the PLINK output
+cd VCF_subsettedByDes_pruning
+
+# Request interactive
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load plink/1.90b4.9
+
+# create environmental variables to store paths
+VCFs_subsetted="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/InputVCFs/cutoff_0.99_subsettedVCFs"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning"
+
+# just for 0.99 cutoff, this is the cutoff we are going to move forward with!
+for vcf in ${VCFs_subsetted}/*vcf ; do # for the VCFs in the 0.99 cutoff dir
+
+    chromID=$(basename "$vcf" .vcf | cut -d "_" -f 1) # pull the chromosome from the vcf file name
+    cutoff=$(basename "$vcf" .vcf | cut -d "_" -f 4) # pull the cutoff from the vcf file name
+
+
+    # Allow extra chromosome - we have a Z chromosome and PLINK was designed for humans
+    # Set missing var IDS - so PLINK will use chromosome ID and position as the unique ID (chromID_pos, this format will match nicely with des file)
+    # indep pairwise - 50 = window (Kb,) 10 = window step size (bp), 0.1 = r2 value, linkage level we'll accept (prune if > 0.1)
+    plink --vcf ${vcf} --allow-extra-chr --set-missing-var-ids @_# --indep-pairwise 50 10 0.1 --out "${output_dir}/${chromID}_cutoff_${cutoff}_pruned_window50" # reducing r2 to 0.09 only reduces the number of sites by 4!
+
+    plink --vcf ${vcf} --allow-extra-chr --set-missing-var-ids @_# --indep-pairwise 200 10 0.1 --out "${output_dir}/${chromID}_cutoff_${cutoff}_pruned_window200" # recall, originall window we set was 450 (267 sites), with 400 window (293 sites)
+    
+done
+
+# Sort the output files
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning
+mkdir Window50_pruned_0.99_cutoff Window200_pruned_0.99_cutoff
+
+mv *cutoff_0.99_pruned_window50* Window50_pruned_0.99_cutoff
+mv *cutoff_0.99_pruned_window200* Window200_pruned_0.99_cutoff
+
+# Create concatenated version of pruned in list for the 0.99 cutoffs
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning # if not there already
+
+cat Window50_pruned_0.99_cutoff/*prune.in > prune_in_0.99_cutoff_window50 # list of [chromID]_[positions] to keep for 0.99 cutoff, 2070 sites
+cat Window200_pruned_0.99_cutoff/*prune.in > prune_in_0.99_cutoff_window200 # list of [chromID]_[positions] to keep for 0.99 cutoff, 537 sites
+
+```
+Outputs: Window200_pruned_0.99_cutoff Window50_pruned_0.99_cutoff directories wich store prune.in, prune.out, .log, .nosex outputs AND the prune_in_0.99_cutoff_window200 prune_in_0.99_cutoff_window50 lists which shows all the [chromID]_[positions] to keep after pruning with the different window sizes
+
+## Subset the designation files based on prune.in sites
+
+```bash
+
+# Subset the 0.99 designation files for prune.in sites
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files # move to the dir that stores the pruned des files
+
+# Request an interactive session
+interactive -A naiss2023-5-262 -n 20 -t 2:00:00 
+
+# Directory containing the files, for window size 200 at 0.99 cutoff
+designation_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/09_DesignateAlleles/Outputs/Designations_VCFsansMaxMissing" # very long, save into environmental variable!
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files" # also set this to ensure output goes where we want
+prune_in_file="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.99_cutoff_window200"
+
+# Iterate over each file in the input directory
+for des_dir in "$designation_dir"/cutoff_0.99_sepByChrom_*; do # SAHA and sansSAHA
+
+    for des_file in "$des_dir"/*.tsv; do
+
+
+        file_basename=$(basename ${des_file} .tsv | cut -d "_" -f 1,3-5 ) # e.g. CM071462.1_cutoff_0.99_sansSAHA
+
+
+        pruned_output="${output_dir}/${file_basename}_pruned_window200.tsv" # create variables to store output file names, will be shorter to call in further down
+        > "$pruned_output" # initiate empty files for output to append to
+        
+        while IFS= read -r line; do # read designation file line by line
+
+            if [[ "$line" =~ ^# ]]; then # If header line, starts with "#"
+            echo "$line" >> "$pruned_output" # keep the header in new output file, but don't scan header for chromID_position
+            continue
+            fi
+            
+            locus_col=$(echo "$line" | cut -f 1 | cut -d "_" -f 1-2 ) # pull the locus from column 1, then isolate [chromID]_[position]
+            
+            if grep -qFx "$locus_col" "$prune_in_file"; then # checks the [chromID]_[position] from the site des file against the list of retained sites post-pruning
+
+            echo "$line" >> "$pruned_output" # if exists, then print designation file line to the output
+
+            fi
+        done < "$des_file"
+
+    done
+
+done
+
+# Sort the output files
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files
+
+mkdir pruned_desFiles_sepByChrom_0.99_cutoff_window200
+mv *_pruned_window200.tsv pruned_desFiles_sepByChrom_0.99_cutoff_window200
+
+
+# Repeat for window size 50 at 0.99 cutoff
+# Only need to reset this!
+prune_in_file="/proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.99_cutoff_window50"
+
+# Iterate over each file in the input directory
+for des_dir in "$designation_dir"/cutoff_0.99_sepByChrom_*; do # SAHA and sansSAHA
+
+    for des_file in "$des_dir"/*.tsv; do
+
+
+        file_basename=$(basename ${des_file} .tsv | cut -d "_" -f 1,3-5 ) # e.g. CM071462.1_cutoff_0.99_sansSAHA
+
+
+        pruned_output="${output_dir}/${file_basename}_pruned_window50.tsv" # create variables to store output file names, will be shorter to call in further down
+        > "$pruned_output" # initiate empty files for output to append to
+        
+        while IFS= read -r line; do # read designation file line by line
+
+            if [[ "$line" =~ ^# ]]; then # If header line, starts with "#"
+            echo "$line" >> "$pruned_output" # keep the header in new output file, but don't scan header for chromID_position
+            continue
+            fi
+            
+            locus_col=$(echo "$line" | cut -f 1 | cut -d "_" -f 1-2 ) # pull the locus from column 1, then isolate [chromID]_[position]
+            
+            if grep -qFx "$locus_col" "$prune_in_file"; then # checks the [chromID]_[position] from the site des file against the list of retained sites post-pruning
+
+            echo "$line" >> "$pruned_output" # if exists, then print designation file line to the output
+
+            fi
+        done < "$des_file"
+
+    done
+
+done
+
+# Sort the output files
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files
+
+mkdir pruned_desFiles_sepByChrom_0.99_cutoff_window50
+mv *_pruned_window50.tsv pruned_desFiles_sepByChrom_0.99_cutoff_window50
+
+
+# Create a concatenated version of the TSVs at for each window size, reuse code from above
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/Pruned_designation_files # if not there already
+
+for dir in pruned_desFiles_sepByChrom_0.99_cutoff_window*; do # pulls the window 200 dir and window 50 dir
+
+    window=$(basename "$dir" | cut -d "_" -f 6 ) # pulls the window from the dir name, e.g. window200 
+
+    for SAHA_tsv in ${dir}/*_SAHA_pruned_${window}.tsv; do # matches to the correct tsv
+
+        # Will include each of the headers from the independent designation files
+        cat ${SAHA_tsv} >> "./pruned_cutoff_0.99_SAHA_${window}.tsv" # window200 - 578 lines incl headers, window50 - 2111 lines incl headers
+
+    done
+
+    for sansSAHA_tsv in ${dir}/*_sansSAHA_pruned_${window}.tsv; do
+
+        cat ${sansSAHA_tsv} >> "./pruned_cutoff_0.99_sansSAHA_${window}.tsv" # window200 - 578 lines incl headers, window50 - 2111 lines incl headers
+
+    done
+done 
+
+
+# Only keep the first header, remove all the duplicate headers throughout the file
+for comp_designation_file in *window*.tsv; do
+    awk '/^#/ && !header_seen {print; header_seen=1; next} !/^#/' ${comp_designation_file} > "${comp_designation_file}_temp"
+
+    # overwrite the file to reflect the temp file with just one header
+    mv ${comp_designation_file}_temp "${comp_designation_file}" # window200 - 538 lines incl header, window50 - 2071 lines incl header
+done
+```
+Outputs: 4 output files (1 for each window SAHA/sansSAHA combo in the Pruned_designation_files directory). Files are named pruned_cutoff_0.99_[sansSAHA/SAHA]_window[windowSize].tsv. 
+
+## Copy the newly pruned designation files to the local computer and re-run desFiles.R and tests.R
+
+# Visualize sites across chromosomes and see how it changes with different linkage pruning parameters 
+
+## Create vcf.gz files of VCFs at 0.99 cutoff that have been separated by SD and HD and have been pruned at different window sizes
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna
+mkdir 14_KaryoploteRprep
+
+# We need pruned designation files in VCF format separated by SD and HD! 
+
+# Recall from previous steps! We already have 0.99 cutoff VCFs separated by SD and HD, located here: /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/VCFs_subsetted_SD_HD!
+
+# Recall from previous steps! We already have a list of prune.in sites for 450, 200, and 50 kb window sizes, located here: /proj/sparrowhybridization/Pitaliae/working/Arianna/12_LinkagePruning/VCF_subsettedByDes_pruning
+```
+```bash
+# Create the VCFs for 0.99 cutoff, sep by SD and HD, pruned
+
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep # if not already here
+
+# Use the prune.in sites list we used previously to create a Regions file for bcftools! chrom\tposition
+cat ../12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.99_cutoff | tr "_" "\t" > prune_in_0.99_cutoff_window450_bcftoolsFormat # 267 sites
+cat ../12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.99_cutoff_window200 | tr "_" "\t" > prune_in_0.99_cutoff_window200_bcftoolsFormat # 537 sites
+cat ../12_LinkagePruning/VCF_subsettedByDes_pruning/prune_in_0.99_cutoff_window50 | tr "_" "\t" > prune_in_0.99_cutoff_window50_bcftoolsFormat # 2070 sites
+
+# Create bgzipped versions of the 0.99 cutoff VCFs that have been separated by SD & HD
+
+# bgzip the subsetted VCFs
+mkdir Subsetted_sepHDSD_VCFs_bgzipped
+
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00
+module load bioinfo-tools
+module load bcftools/1.14
+
+vcf_parent_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/VCFs_subsetted_SD_HD"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/Subsetted_sepHDSD_VCFs_bgzipped"
+
+for vcf_dir in "$vcf_parent_dir"/VCFs_subsetted_*D; do
+
+    vcf_dir_name=$(basename "$vcf_dir" ) # pulls just the name (e.g. VCFs_subsetted_HD), not whole path
+
+    for vcf in "$vcf_dir"/*vcf; do
+        
+        vcf_name=$(basename "$vcf" ) # keep the .vcf ending!
+
+        sub_output_dir="${output_dir}/pruned_${vcf_dir_name}_bgzipped"
+
+        echo ${vcf_name}
+
+        mkdir -p ${sub_output_dir} # will not override existing dir
+    
+        bcftools view ${vcf} -Oz --threads 20 -o "${sub_output_dir}/${vcf_name}.gz" 
+
+    done
+
+done # took ~2 minutes
+```
+Outputs: 41 bgzipped vcf files for SD 0.99 (0.99 cut) and 41 for HD (0.99 cut)! Located in Subsetted_sepHDSD_VCFs_bgzipped/VCFs_subsetted_[designation]_bgzipped/[.vcf files]
+
+```bash
+# Now index the compressed subsetted vcfs
+vcf_parent_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/Subsetted_sepHDSD_VCFs_bgzipped"
+
+for vcf_dir in "$vcf_parent_dir"/VCFs_subsetted_*D_bgzipped; do
+
+    for vcf in "$vcf_dir"/*vcf.gz; do
+        
+        bcftools index ${vcf}
+
+    done
+
+done # took ~2 minutes
+
+```
+Outputs: each of the vcf.gz files that were outputted from above should be accompanied by a .csi file, 82 in total (41 for each cutoff)
+
+```bash
+
+# Now run bcftools to only keep prune.in sites for each window!
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep
+mkdir Subsetted_VCFs_linkagePruned_varyWindowSizes
+
+vcf_parent_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/Subsetted_sepHDSD_VCFs_bgzipped"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/Subsetted_VCFs_linkagePruned_varyWindowSizes"
+
+
+for vcf_dir in "$vcf_parent_dir"/VCFs_subsetted_*D_bgzipped; do
+
+    vcf_dir_name=$(basename "$vcf_dir" ) # pulls just the name, not whole path
+    designation=$(basename "$vcf_dir" | cut -d "_" -f 4 )
+
+    for vcf in "$vcf_dir"/*vcf.gz; do
+        
+        vcf_name=$(basename "$vcf" .vcf.gz ) # file name without .vcf.gz
+
+        sub_output_dir="${output_dir}/pruned_${vcf_dir_name}"
+
+        mkdir -p ${sub_output_dir} # will not override existing dir
+
+        # use the cutoff associated prune.in list
+        bcftools view ${vcf} -R prune_in_0.99_cutoff_window450_bcftoolsFormat -Oz -o "${sub_output_dir}/${vcf_name}_pruned_window450.vcf.gz" 
+        bcftools view ${vcf} -R prune_in_0.99_cutoff_window200_bcftoolsFormat -Oz -o "${sub_output_dir}/${vcf_name}_pruned_window200.vcf.gz" 
+        bcftools view ${vcf} -R prune_in_0.99_cutoff_window50_bcftoolsFormat -Oz -o "${sub_output_dir}/${vcf_name}_pruned_window50.vcf.gz" 
+    
+
+    done
+
+done # took ~3 minutes
+
+# Sort the output into directories based on window size
+
+for vcf_dir in Subsetted_VCFs_linkagePruned_varyWindowSizes/pruned_VCFs_subsetted_*D_bgzipped; do
+
+    designation=$(basename "$vcf_dir" | cut -d "_" -f 4 )
+
+    for vcf in "$vcf_dir"/*vcf.gz; do
+
+        window=$(basename "$vcf" .vcf.gz | cut -d "_" -f 7 ) # will pull window from file name (e.g. window50)
+
+        output_dir="Subsetted_VCFs_linkagePruned_varyWindowSizes/pruned_VCFs_subsetted_${designation}_bgzipped/${designation}_${window}" # in the directory where the VCF files currently are
+        #echo ${output_dir}
+
+        mkdir -p ${output_dir}  # will not override existing dir
+
+        mv ${vcf} "${output_dir}"
+
+    done
+
+done
+
+```
+Outputs: 246 vcf.gz files! Sorted like this: Subsetted_VCFs_linkagePruned_varyWindowSizes/pruned_VCFs_subsetted_[designation]_bgzippedVCFs/[desiganation]_[windowsize]/*vcf.gz. 41 vcf.gz files per each designation & window combination!
+
+## Concatenate the separate chromsomes into genome VCFs for each des and window! Store in Subsetted_VCFs_linkagePruned_varyWindowSizes
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/Subsetted_VCFs_linkagePruned_varyWindowSizes
+
+interactive -A naiss2023-5-262 -n 20 -t 1:00:00 # if old session done already
+module load bioinfo-tools
+module load bcftools/1.14
+
+parent_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/Subsetted_VCFs_linkagePruned_varyWindowSizes"
+
+# Create files with lists to paths!
+for des_dir in "$parent_dir"/pruned_VCFs_subsetted_*D_bgzipped; do
+
+    for window_dir in "$des_dir"/*D_window*; do
+
+        paths_file_name=$(basename "$window_dir") # e.g. HD_window200
+
+        for vcf in "$window_dir"/*vcf.gz; do
+
+            echo ${vcf} >> "${paths_file_name}_allChroms.list"
+
+        done
+
+    done
+
+done # outputted in Subsetted_VCFs_linkagePruned_varyWindowSizes
+
+
+# Also create file with list to paths for non-pruned version!
+for des_dir in /proj/sparrowhybridization/Pitaliae/working/Arianna/11_GOanalysis/VCFs_subsetted_SD_HD/VCFs_subsetted_*D; do
+
+    paths_file_name=$(basename "$des_dir") # e.g. HD_window200
+
+
+    for vcf in "$des_dir"/*vcf; do
+
+        echo ${vcf} >> "${paths_file_name}_nonPruned_allChroms.list"
+
+    done
+
+done
+
+
+# Create the concatenated versions
+for list in "$parent_dir"/*window*list; do
+    echo ${list}
+
+    file_name=$(basename "$list" .list) #pulls basename!
+
+    bcftools concat -f ${list} -Oz -o  "${file_name}.vcf.gz"
+
+done # outputted in Subsetted_VCFs_linkagePruned_varyWindowSizes
+
+bcftools concat -f VCFs_subsetted_HD_nonPruned_allChroms.list -Oz -o HD_nonPruned_allChroms.vcf
+bcftools concat -f VCFs_subsetted_SD_nonPruned_allChroms.list -Oz -o SD_nonPruned_allChroms.vcf
+
+
+rm *list # clean up by removing path lists
+
+```
+Outputs: 6 .vcf.gz output files in Subsetted_VCFs_linkagePruned_varyWindowSizes! name [siteDes]_[windowSize]_allChroms.vcf.gz! 2 .vcf files for the non-pruned vcfs separated by HD and SD. 
+
+
+## Run bedopps to convert these vcfs into bed format
+```bash
+cd /proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep
+mkdir BedFormat_liknagePruned_varyWindowSize
+
+interactive -A naiss2023-5-262 -n 20 -t 2:00:00 # new interactive session if necessary
+module load bioinfo-tools
+module load BEDOPS/2.4.39
+
+vcf_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/Subsetted_VCFs_linkagePruned_varyWindowSizes"
+output_dir="/proj/sparrowhybridization/Pitaliae/working/Arianna/14_KaryoploteRprep/BedFormat_liknagePruned_varyWindowSize"
+
+
+for vcf in "$vcf_dir"/*vcf.gz; do
+
+    vcf_name=$(basename "$vcf" .vcf.gz) #pulls basename!
+
+    zcat ${vcf} | vcf2bed > "${output_dir}/${vcf_name}.bed" # use zcat rather than bcftools, don't have to load another package
+
+done
+
+# also run on the two .vcf files (uncompressed)
+cat ../Subsetted_VCFs_linkagePruned_varyWindowSizes/HD_nonPruned_allChroms.vcf | vcf2bed > HD_nonPruned_allChroms.bed
+cat ../Subsetted_VCFs_linkagePruned_varyWindowSizes/SD_nonPruned_allChroms.vcf | vcf2bed > SD_nonPruned_allChroms.bed
+```
+Output: 8 .bed files! 1 for each designation (SD and HD) and pruning level (no pruning 50kb window, 200 kb window, 450 kb window)
+
+## Move to desktop and use karyoploteR (v.1.28.0)  in R to visualize!
