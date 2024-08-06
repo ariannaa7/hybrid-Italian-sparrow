@@ -1,0 +1,33 @@
+########################################
+Classifying derived sites from a big multi-sample vcf into two categories:
+house Derived
+Spanish Derived
+
+Classifying italian alleles from a big multi-sample vcf file into four categories:
+house Derived
+Spanish Derived
+house Ancestral
+Spanish Ancestral
+
+----------------------------------
+Categorizing loci/site
+----------------------------------
+
+Rules for skipping loci:
+
+1. If 50 % or more of Spanish sparrows lack calls, skip locus.
+2. If 50 % or more of House sparrows lack calls, skip locus.
+3. If 50 % or more of Tree sparrows lack calls, skip locus.
+4. If more than two alleles are called, skip locus.
+5. If locus is bi-allelic, and if Tree sparrows' minor allele count is >1 (default), skip locus.
+6. If no italian sparrows were classifed House or Spanish, skip locus.
+
+
+Rules for classifying loci:
+
+1. If locus is bi-allelic, and the first allele's Spanish frequency is >0.9 (default), and House frequency is <0.1 (default), allele
+	is Spanish and vice versa.
+2. If locus is bi-allelic, and the Tree sparrows' max allowed minor allele count is 1 (default), their major allele is Ancestral, and their minor allele is Derived.
+########################################
+
+This readme has been adapted from the original readme created by Joel in the Runemark lab.
