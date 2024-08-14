@@ -5,6 +5,7 @@ This repository contains the shell scripts, a Python script, and multiple R scri
 
 ## Data
 House sparrow reference genome (BioProject PRJNA1064421), annotation file, and sequence report were accessed from NCBI
+
 Aligned sparrow BAM files were acquired from the Runemark lab
 
 ## Workflow & scripts
